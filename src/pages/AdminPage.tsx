@@ -248,8 +248,7 @@ export const AdminPage: React.FC = () => {
               Admin Access Protected • Anil Gaur Operations
             </h2>
             <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
-              This area is restricted to primary administrator Anil Gaur. Enter Master PIN to manage users and access credentials.
-              <span className="block mt-1 text-slate-400">このセクションは管理者専用です。ユーザーおよび権限を管理するにはマスターPINを入力してください。</span>
+              Yeh section sirf Anil Gaur ke liye hai. Users aur passwords manage karne ke liye Master PIN daalein.
             </p>
           </div>
 

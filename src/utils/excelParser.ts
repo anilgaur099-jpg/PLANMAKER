@@ -297,7 +297,6 @@ export function parseGridData(
           chassisPrefixes: Array.from(pSet),
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          remark: currentContainer.remark || '',
         });
       }
       currentContainer = null;

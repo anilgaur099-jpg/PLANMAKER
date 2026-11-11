@@ -37,7 +37,7 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
         setContainerNo(editContainer.containerNo);
         setSealOrBlNo(editContainer.sealOrBlNo || '');
         setExtraValue(editContainer.extraValue || 4000);
-        setRemark(editContainer.remark || editContainer.notes || '');
+        setRemark(editContainer.remark || '');
         setVehicles(
           editContainer.vehicles.map((v) => ({
             ...v,
