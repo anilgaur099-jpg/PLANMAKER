@@ -23,8 +23,6 @@ const AppContent: React.FC = () => {
     printContainerData,
     setPrintContainerData,
     isUserBlocked,
-    currentUser,
-    signOutUser,
     sessionUser,
     logoutSessionUser,
     accessConfig,
@@ -68,10 +66,7 @@ const AppContent: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => {
-              signOutUser();
-              logoutSessionUser();
-            }}
+            onClick={() => logoutSessionUser()}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -82,10 +77,9 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Enforce Web Login Gateway: If enabled, user must log in with username/password or master credentials
+  // Enforce Web Login Gateway: User logs in directly with username/password or master PIN
   const isAuthenticated = Boolean(
     sessionUser ||
-    currentUser ||
     adminUnlockedWithPin ||
     accessConfig.requireWebLogin === false
   );

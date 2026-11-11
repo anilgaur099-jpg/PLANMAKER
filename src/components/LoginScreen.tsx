@@ -3,7 +3,7 @@ import { ShieldCheck, Lock, User, KeyRound, Eye, EyeOff, LogIn, AlertCircle, Shi
 import { useApp } from '../context/AppContext';
 
 export const LoginScreen: React.FC = () => {
-  const { loginWithCredentials, unlockAdminWithPin, signInWithGoogle, addToast } = useApp();
+  const { loginWithCredentials, unlockAdminWithPin, addToast } = useApp();
 
   const [activeTab, setActiveTab] = useState<'credentials' | 'pin'>('credentials');
   const [identifier, setIdentifier] = useState('');

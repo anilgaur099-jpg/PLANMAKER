@@ -296,36 +296,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const signInWithGoogle = async () => {
-    try {
-      const res = await loginWithGoogle();
-      setCurrentUser(res.user);
-      addToast({
-        type: 'success',
-        title: 'Signed In with Google',
-        description: `Welcome, ${res.user.displayName || res.user.email}!`,
-      });
-    } catch (err: any) {
-      console.error(err);
-      addToast({
-        type: 'error',
-        title: 'Google Sign-In Cancelled or Failed',
-        description: err.message || 'Unable to sign in.',
-      });
-    }
+    // Google popup sign-in disabled as requested: Access is exclusively managed via Admin usernames & passwords.
+    addToast({
+      type: 'info',
+      title: 'Portal Authentication',
+      description: 'Please sign in using your username and password assigned by Anil Gaur.',
+    });
   };
 
   const signOutUser = async () => {
-    try {
-      await logoutUser();
-      setCurrentUser(null);
-      addToast({
-        type: 'info',
-        title: 'Signed Out',
-        description: 'You have been signed out from Firebase.',
-      });
-    } catch (err: any) {
-      console.error(err);
-    }
+    logoutSessionUser();
   };
 
   const SESSION_USER_KEY = 'cpm_session_user_v1';

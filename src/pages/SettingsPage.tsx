@@ -17,10 +17,11 @@ import {
   RefreshCw,
   BookOpen,
   Cloud,
-  LogIn,
   LogOut,
   Server,
   ExternalLink,
+  ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
 import { useApp, CONTAINER_PRESETS } from '../context/AppContext';
 import { db, generateSyntheticContainers } from '../db/db';
@@ -37,11 +38,11 @@ export const SettingsPage: React.FC = () => {
     addToast,
     isCloudConnected,
     cloudSyncStatus,
-    currentUser,
+    sessionUser,
     syncToCloud,
     syncFromCloud,
-    signInWithGoogle,
-    signOutUser,
+    logoutSessionUser,
+    setActivePage,
   } = useApp();
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -464,37 +465,38 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* User Account / Auth Section */}
-            <div className="p-3 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div>
-                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
-                  Firebase User Authentication
+            {/* Portal User Session & Access Control Section (Google login disabled) */}
+            <div className="p-4 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Portal Account & Access Control (Admin Managed)</span>
                 </span>
-                <p className="text-[11px] text-slate-500">
-                  {currentUser
-                    ? `Logged in as ${currentUser.displayName || currentUser.email} (${currentUser.email})`
-                    : 'Sign in with your Google account to access your cloud-synced container plans.'}
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  {sessionUser
+                    ? `Active Session: ${sessionUser.displayName || sessionUser.username} • Role: ${sessionUser.role.toUpperCase()}`
+                    : 'Administrator Session (Master Control)'}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  Team members log in directly using User & Password assigned by Anil Gaur. Google popup login has been removed.
                 </p>
               </div>
 
-              <div>
-                {currentUser ? (
-                  <button
-                    onClick={() => signOutUser()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => signInWithGoogle()}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white cursor-pointer shadow-xs"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Sign In with Google</span>
-                  </button>
-                )}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setActivePage('admin')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Manage Users</span>
+                </button>
+                <button
+                  onClick={() => logoutSessionUser()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log Out</span>
+                </button>
               </div>
             </div>
 

@@ -24,7 +24,6 @@ import { firebaseConfig } from '../firebase/config';
 
 export const AdminPage: React.FC = () => {
   const {
-    currentUser,
     sessionUser,
     isAdmin,
     adminUnlockedWithPin,

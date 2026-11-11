@@ -23,8 +23,7 @@ export const TopNav: React.FC<TopNavProps> = ({
     sessionUser,
     logoutSessionUser,
     syncToCloud,
-    signInWithGoogle,
-    signOutUser,
+    adminUnlockedWithPin,
   } = useApp();
 
   return (
@@ -128,38 +127,26 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
 
         {/* User Auth Info / Session Status */}
-        {sessionUser || currentUser ? (
+        {sessionUser || adminUnlockedWithPin ? (
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">
             <User className="w-3.5 h-3.5 text-sky-500 shrink-0" />
             <div className="flex flex-col text-left">
-              <span className="font-semibold text-[11px] leading-tight text-slate-900 dark:text-slate-100 max-w-[120px] truncate" title={sessionUser?.email || currentUser?.email || ''}>
-                {sessionUser?.displayName || sessionUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0]}
+              <span className="font-semibold text-[11px] leading-tight text-slate-900 dark:text-slate-100 max-w-[120px] truncate">
+                {sessionUser?.displayName || sessionUser?.username || 'Anil Gaur'}
               </span>
               <span className="text-[9px] font-mono uppercase text-sky-600 dark:text-sky-400 font-bold">
                 {sessionUser?.role || 'Admin'}
               </span>
             </div>
             <button
-              onClick={() => {
-                logoutSessionUser();
-                signOutUser();
-              }}
-              title="Sign out of current user account"
+              onClick={() => logoutSessionUser()}
+              title="Sign out / Log out"
               className="p-1 hover:text-rose-500 rounded transition-colors cursor-pointer ml-1"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
-        ) : (
-          <button
-            onClick={() => signInWithGoogle()}
-            title="Sign in with Google Account"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <LogIn className="w-3.5 h-3.5 text-slate-500" />
-            <span>Google Login</span>
-          </button>
-        )}
+        ) : null}
 
         <button
           onClick={onOpenImportModal}
