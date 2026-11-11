@@ -230,7 +230,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ container, onClose }) =>
           {container.remark && (
             <div className="p-3.5 rounded-lg border-2 border-amber-400 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/30 print:bg-white print:border-black text-xs space-y-1">
               <div className="font-bold uppercase tracking-wider text-[11px] text-amber-900 dark:text-amber-300 print:text-black">
-                🔧 Vehicle Loading Steps & Preparation Instructions / 車両積載指示・作業備考:
+                🔧 Vehicle Loading Steps & Preparation Instructions / लोडिंग निर्देश एवं तैयारी:
               </div>
               <p className="font-sans whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-200 print:text-black text-xs font-medium">
                 {container.remark}

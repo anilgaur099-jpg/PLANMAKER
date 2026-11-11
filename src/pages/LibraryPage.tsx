@@ -224,8 +224,8 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {settings.language === 'ja'
-              ? 'コンテナ積載プランアーカイブ • 車両4台構成、加工手順、積載実績の閲覧・編集・出力'
+            {settings.showHinglish
+              ? 'Konteynar Plans Sangrah • Expand karke 4 gaadiyan dekhein, edit karein ya export karein'
               : 'Complete repository of historical shipping container vanning manifests and specs'}
           </p>
         </div>
@@ -459,7 +459,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
                         {/* Total Vehicles Count Badge */}
                         <span className="px-2 py-0.5 rounded-md text-[11px] font-bold font-mono bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                          {container.vehicles.length || container.vehicleCount} Vehicles / 積載台数
+                          {container.vehicles.length || container.vehicleCount} Vehicles / गाड़ियाँ
                         </span>
 
                         {container.sealOrBlNo && (
@@ -492,7 +492,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                         <div className="mt-2.5 p-2.5 rounded-lg border border-amber-300/80 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-200 space-y-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-1.5">
                             <span className="font-bold text-[10px] uppercase tracking-wider text-amber-800 dark:text-amber-400 flex items-center gap-1 font-mono">
-                              <span>🔧 Loading Steps & Vehicle Prep / 積載作業・加工内容:</span>
+                              <span>🔧 Loading Steps & Vehicle Prep / काम का विवरण:</span>
                             </span>
                             {/(bumper|remove|hata|ramp|slant|deflate|tyre|wood|chock|tied)/i.test(container.remark || container.notes || '') && (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">

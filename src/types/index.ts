@@ -79,9 +79,7 @@ export interface ContainerPreset {
 }
 
 export interface AppSettings {
-  language: 'en' | 'ja';
-  showJapaneseSubtitles?: boolean;
-  showHinglish?: boolean; // legacy compatibility
+  showHinglish: boolean;
   theme: 'light' | 'dark' | 'system';
   activePresetId: string;
   maxVehicles: number;

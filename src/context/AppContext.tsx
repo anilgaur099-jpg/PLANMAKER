@@ -114,9 +114,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const SETTINGS_STORAGE_KEY = 'cpm_app_settings_v1';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  language: 'en',
-  showJapaneseSubtitles: true,
-  showHinglish: false,
+  showHinglish: true,
   theme: 'dark', // Modern dark mode default for enterprise logistics
   activePresetId: '40hc',
   maxVehicles: 4,
@@ -138,14 +136,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          language: parsed.language || 'en',
-          showJapaneseSubtitles: parsed.showJapaneseSubtitles !== false,
-          showHinglish: false,
-        };
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
       }
     } catch (e) {
       console.warn('Failed to parse settings from localStorage', e);

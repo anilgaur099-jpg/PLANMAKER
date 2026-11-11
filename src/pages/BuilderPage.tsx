@@ -465,8 +465,8 @@ export const BuilderPage: React.FC = () => {
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            {settings.language === 'ja'
-              ? 'アップロードされた過去の実績コンテナプランのみと照合して作成・確定します（AI推測・予測なし）。'
+            {settings.showHinglish
+              ? 'सिर्फ अपलोड किए गए पुराने प्लान्स से चेक होकर ही नया प्लान बनेगा और कन्फर्म होगा (No AI / No Predictions).'
               : 'Plans are confirmed and formed ONLY from your uploaded past container plans. Zero synthetic predictions.'}
           </p>
         </div>
@@ -506,7 +506,7 @@ export const BuilderPage: React.FC = () => {
             onChange={(e) => setStrictUploadedOnly(e.target.checked)}
             className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
           />
-          <span>Only Build Confirmed Uploaded Plans / 過去実績確定プランのみ作成</span>
+          <span>Only Build Confirmed Uploaded Plans (सख्त पुराना प्लान मिलान)</span>
         </label>
       </div>
 
@@ -710,10 +710,10 @@ export const BuilderPage: React.FC = () => {
           <div className="text-xs text-slate-500">
             {strictUploadedOnly ? (
               <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                ✓ Strict Verification: Only vehicle combinations present in your uploaded historical plans will be confirmed. / 過去プランに存在する組合せのみが確定されます。
+                ✓ Strict Check: Jo combination aapke uploaded plans me hai, sirf vahi confirm hoga.
               </span>
             ) : (
-              <span>Allowing fallback packing for unmatched items. / 未照合車両のフォールバック積載を許可</span>
+              <span>Allowing fallback packing for unmatched items.</span>
             )}
           </div>
 
@@ -828,11 +828,11 @@ export const BuilderPage: React.FC = () => {
                     <div className="p-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/90 dark:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-200 space-y-1.5 shadow-2xs">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="font-bold text-[11px] text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                          <span>📦 Historical Plan ({container.matchedPatternFrom}) Loading Steps & Work / 過去プラン作業内容:</span>
+                          <span>📦 Purane Plan ({container.matchedPatternFrom}) Me Kya-Kya Kaam Hua Tha:</span>
                         </span>
                         {/(bumper|remove|hata|ramp|slant|deflate|tyre|wood|chock|tied)/i.test(container.matchedPastPlanRemark) && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                            ⚠️ Bumper Removed / Special Loading Work (バンパー外し等)
+                            ⚠️ Bumper Removed / Special Loading Work
                           </span>
                         )}
                       </div>
@@ -850,19 +850,19 @@ export const BuilderPage: React.FC = () => {
                   <div className="space-y-1.5 pt-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        New Plan Loading Steps & Notes / 新規プラン積載作業指示・備考:
+                        New Plan Loading Steps & Notes / नए प्लान के लोडिंग स्टेप्स:
                       </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1">
                       {[
-                        'Front Bumper Removed (フロントバンパー外し)',
-                        'Rear Bumper Removed (リアバンパー外し)',
-                        'Slanted on Ramp 35° (スロープ傾斜積み)',
-                        'Tyres Deflated (タイヤ減圧)',
-                        'Mirrors Folded (ミラー格納)',
-                        'Wooden Chocks Secured (木製輪留め固定)',
-                        'Battery Disconnected (バッテリー端子外し)',
+                        'Front Bumper Removed',
+                        'Rear Bumper Removed',
+                        'Slanted on Ramp (35°)',
+                        'Tyres Deflated',
+                        'Mirrors Folded',
+                        'Wooden Chocks Secured',
+                        'Battery Disconnected',
                       ].map((tag, tIdx) => (
                         <button
                           key={tIdx}
@@ -1003,10 +1003,8 @@ export const BuilderPage: React.FC = () => {
             </span>
           </div>
           <p className="text-amber-900 dark:text-amber-200 text-[11px] leading-relaxed">
-            These vehicles could not be matched against any historical plan combination in your uploaded database. No synthetic guesses or AI predictions are made. You can adjust vehicle quantities or upload new past records.
-            <span className="block mt-1 text-amber-800 dark:text-amber-300">
-              アップロード済みの過去プラン内に一致する積載組合せが見つかりませんでした。推測による無理なプラン生成は行われません。車両構成を変更するか、過去プランを追加登録してください。
-            </span>
+            Ye gaadiyan aapke kisi bhi uploaded purane container plan me is combination ke saath match nahi hui.
+            Koi prediction ya guess nahi kiya gaya hai. Aap naye plans upload kar sakte hain ya gaadiyon ki sankhya badal sakte hain.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             {unmatchedVehicles.map((v, i) => (

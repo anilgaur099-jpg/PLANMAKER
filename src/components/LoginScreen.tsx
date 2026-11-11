@@ -96,11 +96,10 @@ export const LoginScreen: React.FC = () => {
               <Lock className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">
-              Authorized Portal Access / 認証ポータル
+              Authorized Portal Access
             </h1>
             <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Protected Container Logistics System for Japanese Vehicle Export. Sign in with authorized credentials.
-              <span className="block text-[11px] text-slate-500 mt-0.5">日本中古車輸出・コンテナ積載管理システム</span>
+              Yeh web application surakshit hai. Sirf Anil Gaur dwara authorised users hi access kar sakte hain.
             </p>
           </div>
 
@@ -118,7 +117,7 @@ export const LoginScreen: React.FC = () => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              User & Password / ユーザー
+              User & Password
             </button>
             <button
               type="button"
@@ -132,7 +131,7 @@ export const LoginScreen: React.FC = () => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Master PIN / 管理者PIN
+              Master Admin PIN
             </button>
           </div>
 
@@ -149,7 +148,7 @@ export const LoginScreen: React.FC = () => {
             <form onSubmit={handleCredentialsSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Username or Email / ユーザー名・ログインID
+                  Username or Email / यूजरनेम
                 </label>
                 <div className="relative">
                   <input
@@ -166,7 +165,7 @@ export const LoginScreen: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Password / パスワード
+                  Password / पासवर्ड
                 </label>
                 <div className="relative">
                   <input
@@ -195,7 +194,7 @@ export const LoginScreen: React.FC = () => {
                 className="w-full py-2.5 text-xs font-bold rounded-xl bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/25 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <LogIn className="w-4 h-4" />
-                <span>{isLoading ? 'Verifying...' : 'Sign In to Portal / ログイン'}</span>
+                <span>{isLoading ? 'Verifying...' : 'Sign In to Portal'}</span>
               </button>
             </form>
           )}
@@ -205,7 +204,7 @@ export const LoginScreen: React.FC = () => {
             <form onSubmit={handlePinSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Master Admin PIN / マスター管理者PIN
+                  Master Admin PIN / एडमिन पिन
                 </label>
                 <div className="relative">
                   <input
@@ -227,7 +226,7 @@ export const LoginScreen: React.FC = () => {
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                  Restricted to Anil Gaur Master Operations / マスター管理者専用
+                  Sirf Anil Gaur ke master control ke liye.
                 </p>
               </div>
 
@@ -236,7 +235,7 @@ export const LoginScreen: React.FC = () => {
                 className="w-full py-2.5 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/25 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Unlock Master Access / 管理者認証</span>
+                <span>Unlock Master Access</span>
               </button>
             </form>
           )}
@@ -256,7 +255,7 @@ export const LoginScreen: React.FC = () => {
             <span>100% Private & Confidential Export Data Guarantee</span>
           </div>
           <p className="text-[10px] text-slate-500 leading-relaxed">
-            All container loading archives, vehicle dimensions, and export manifests are strictly protected and private. (車両仕様・積載実績データ完全保護)
+            Aapka container data, vehicle chassis numbers aur pricing Google ya kisi teesre ke sath share nahi kiya jaata. Yeh data poori tarah surakshit aur private hai.
           </p>
         </div>
       </main>
