@@ -210,8 +210,8 @@ export const AdminPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            {settings.showHinglish
-              ? 'Yahan se aap naye User aur Password banayein jisko aap access dena chahte hain. Kissi ko bhi kick-out ya block karein.'
+            {settings.language === 'ja'
+              ? '権限のあるユーザー名とパスワードを作成し、Webアクセスを管理します。アカウントの停止・削除も可能です。'
               : 'Create authorized usernames and passwords to grant web access. Manage user accounts and revoke access.'}
           </p>
         </div>
@@ -402,7 +402,7 @@ export const AdminPage: React.FC = () => {
 
             <div className="text-[11px] text-slate-600 dark:text-slate-400 bg-white/60 dark:bg-slate-950/40 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span>
-                💡 <strong>Maker Console Sync:</strong> Aapka poora database <code className="font-mono text-sky-600 dark:text-sky-400 font-bold">console.firebase.google.com</code> ke <code className="font-mono">{firebaseConfig.projectId}</code> project me surakshit save hota hai.
+                💡 <strong>Maker Console Sync:</strong> All records are saved directly in project <code className="font-mono text-sky-600 dark:text-sky-400 font-bold">{firebaseConfig.projectId}</code> on <code className="font-mono">console.firebase.google.com</code>.
               </span>
               <a
                 href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/${firebaseConfig.firestoreDatabaseId}/data`}
@@ -421,10 +421,13 @@ export const AdminPage: React.FC = () => {
             <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h4 className="font-bold text-emerald-900 dark:text-emerald-300 text-xs">
-                Data Privacy & Export Confidentiality Guarantee (डेटा पूर्णतः सुरक्षित है)
+                Data Privacy & Export Confidentiality Guarantee / データ保護・機密保持保証
               </h4>
               <p className="text-emerald-800 dark:text-emerald-400 leading-relaxed text-[11px]">
-                Aapka container data, vehicle pricing, chassis prefixes, aur loading remarks poori tarah private aur secure hain. Yeh data Google ya kisi aur teesri party ke sath share nahi hota. Sirf aapke dwara banaye gaye authenticated users hi is app ka data dekh sakte hain.
+                Your container data, vehicle pricing, chassis prefixes, and loading remarks are 100% confidential and secure. They are never shared with unauthorized parties. Only authenticated users created by you can access this database.
+                <span className="block mt-1 font-sans text-emerald-900 dark:text-emerald-300 font-medium">
+                  コンテナデータ、仕入れ価格、車台番号プレフィックス、積載作業指示備考は厳格に暗号化・保護されており、第三者への共有は一切行われません。作成された認証済みユーザーのみが閲覧できます。
+                </span>
               </p>
             </div>
           </div>
@@ -435,10 +438,10 @@ export const AdminPage: React.FC = () => {
               <div>
                 <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-sky-500" />
-                  <span>Create User & Password / नया यूजर एवं पासवर्ड बनाएं</span>
+                  <span>Create User & Password / 新規ユーザー登録</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Jisko aap access dena chahte hain uska Username aur Password yahan set karein.
+                  Set up username, login credentials, and permission levels for team members. / チームメンバーのユーザー名とパスワードを発行します。
                 </p>
               </div>
 
@@ -455,26 +458,26 @@ export const AdminPage: React.FC = () => {
             <form onSubmit={handleAddUser} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Full Name / स्टाफ नाम
+                  Full Name / 氏名・ヤード担当
                 </label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Ramesh - Yard"
+                  placeholder="e.g. Kenji Tanaka"
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Username * / यूजरनेम
+                  Username * / ユーザーID
                 </label>
                 <input
                   type="text"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. ramesh1"
+                  placeholder="e.g. kenji1"
                   required
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono font-bold"
                 />
@@ -482,7 +485,7 @@ export const AdminPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Password * / पासवर्ड
+                  Password * / パスワード
                 </label>
                 <div className="relative">
                   <input
@@ -505,16 +508,16 @@ export const AdminPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Role / रोल
+                  Role / 権限区分
                 </label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
                 >
-                  <option value="staff">Staff (Build & View Plans)</option>
-                  <option value="viewer">Viewer (View Only)</option>
-                  <option value="admin">Co-Admin</option>
+                  <option value="staff">Staff (Build & View Plans / 作業・プラン作成)</option>
+                  <option value="viewer">Viewer (View Only / 閲覧のみ)</option>
+                  <option value="admin">Co-Admin (副管理者)</option>
                 </select>
               </div>
 
@@ -698,20 +701,20 @@ export const AdminPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-amber-500" />
-                <span>Reset User Password / नया पासवर्ड असाइन करें</span>
+                <span>Reset User Password / パスワード再設定</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Account: <strong className="text-slate-800 dark:text-slate-200">{editingUser.displayName || editingUser.username}</strong> ({editingUser.email})
               </p>
               <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-2 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 leading-relaxed">
-                🔒 <strong>Privacy Protected:</strong> Purana password web page par show nahi hota. Yahan naya password type karke save karein.
+                🔒 <strong>Privacy Protected:</strong> Existing passwords are never shown. Type and assign a new secure password below. / パスワードは暗号化されています。新しいパスワードを入力して更新してください。
               </p>
             </div>
 
             <form onSubmit={handleSaveEditedPassword} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  New Password / नया पासवर्ड
+                  New Password / 新しいパスワード
                 </label>
                 <div className="relative">
                   <input
@@ -761,10 +764,10 @@ export const AdminPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full p-6 space-y-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Change Master Password / PIN
+              Change Master Password / PIN (マスターPIN変更)
             </h3>
             <p className="text-xs text-slate-500">
-              Yeh PIN aapke alawa kisi ko pata nahi chalega.
+              Keep this master PIN secret. Only you have full admin authority. / このマスターPINは管理者専用です。厳重に管理してください。
             </p>
 
             <form onSubmit={handleChangeMasterPassword} className="space-y-3">

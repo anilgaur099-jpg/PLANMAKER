@@ -279,10 +279,10 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
               <div>
                 <label className="block text-xs font-bold text-amber-900 dark:text-amber-300">
-                  Vehicle Loading Steps & Work Done / लोडिंग प्रक्रिया एवं तैयारी (Bumper Removal, Ramps, etc.) *
+                  Vehicle Loading Steps & Work Done / 積載作業手順・加工内容 (Bumper Removal, Ramps, etc.)
                 </label>
                 <p className="text-[11px] text-amber-800 dark:text-amber-400">
-                  Gaadi load karte waqt jo-jo steps hue (e.g. bumper remove, ramp angle, tyres deflate, etc.) poora data yahan likhein taaki future me plan dekhte hi pata chale.
+                  Record exact loading operations performed (e.g. bumper removal, ramp angles, tyre deflation, lashing) for future yard reference. / 車両バンパー外しやラダー傾斜、固縛等の作業手順を記録します。
                 </p>
               </div>
             </div>
@@ -290,18 +290,18 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
             {/* Quick Insertion Action Tags */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[10px] font-mono font-bold uppercase text-amber-800 dark:text-amber-400 tracking-wider">
-                Quick Tags:
+                Quick Tags / クイックタグ:
               </span>
               {[
-                'Front Bumper Removed',
-                'Rear Bumper Removed',
-                'Slanted on Ramp (35°)',
-                'Tyres Deflated & Strapped',
-                'Mirrors Folded / Detached',
-                'Wooden Chocks Secured',
-                'Battery Disconnected',
-                'Roof Rack Removed',
-                'Suspension Tied Down',
+                'Front Bumper Removed (フロントバンパー外し)',
+                'Rear Bumper Removed (リアバンパー外し)',
+                'Slanted on Ramp 35° (スロープ傾斜積み)',
+                'Tyres Deflated & Strapped (タイヤ減圧・固縛)',
+                'Mirrors Folded / Detached (ミラー格納・取外し)',
+                'Wooden Chocks Secured (木製輪留め固定)',
+                'Battery Disconnected (バッテリー端子外し)',
+                'Roof Rack Removed (ルーフラック取外し)',
+                'Suspension Tied Down (サスペンション緊締)',
               ].map((tag, tIdx) => (
                 <button
                   key={tIdx}

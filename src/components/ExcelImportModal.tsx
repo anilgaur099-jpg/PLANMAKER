@@ -326,12 +326,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </div>
               )}
 
-              {/* Step-by-Step Hindi / English Guide & Visual Format Table */}
+              {/* Step-by-Step English & Japanese Guide & Visual Format Table */}
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-sky-600" />
-                    <span>Excel File Format Guide / एक्सेल में डेटा कैसे रखें:</span>
+                    <span>Excel File Format Guide / Excelインポート仕様書:</span>
                   </div>
                   <button
                     onClick={downloadBlankExcelTemplate}
@@ -345,28 +345,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      1. File Format
+                      1. File Format / ファイル形式
                     </span>
                     <p>
-                      Aap <strong>.xlsx</strong>, <strong>.xls</strong>, ya <strong>.csv</strong> file upload kar sakte hain, ya Excel se copy karke paste kar sakte hain.
+                      Upload <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong> files, or copy rows directly from Excel and paste above.
+                      <span className="block mt-0.5 text-slate-500">.xlsx、.xls、.csv またはExcelからの直接コピー貼り付けに対応。</span>
                     </p>
                   </div>
 
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      2. Stacked 4-Row Block
+                      2. Stacked 4-Row Block / コンテナ基本情報
                     </span>
                     <p>
-                      Column A me pehle 3 rows me <strong>Container No</strong>, <strong>Seal No</strong>, aur <strong>Tare Weight</strong> aata hai. 4th row blank rehti hai.
+                      Column A rows 1-3 contain <strong>Container No</strong>, <strong>Seal No</strong>, and <strong>Tare Weight</strong>. Row 4 is a blank separator.
+                      <span className="block mt-0.5 text-slate-500">A列の3行にコンテナ番号・シール・風袋重量を配置。</span>
                     </p>
                   </div>
 
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      3. Columns B to P (Vehicles)
+                      3. Columns B to P (Vehicles) / 積載車両情報
                     </span>
                     <p>
-                      Columns B onward 4 gaadiyon ki details hoti hain: Make, Model, CC, Fuel, Year, Chassis No, Dims, Weight, CBM.
+                      Columns B onward record vehicle details: Make, Model, CC, Fuel, Year, Chassis No, Dimensions, Weight, CBM.
+                      <span className="block mt-0.5 text-slate-500">B列以降に車名、型式、車台番号、寸法、CBMを配置。</span>
                     </p>
                   </div>
                 </div>

@@ -59,7 +59,8 @@ const AppContent: React.FC = () => {
               Access Revoked / Kicked Out
             </h1>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Aapka account administrator (<strong className="text-white">Anil Gaur</strong>) dwara block kar diya gaya hai.
+              Your account access has been restricted by administrator (<strong className="text-white">Anil Gaur</strong>).
+              <span className="block mt-1 text-slate-500">管理者（Anil Gaur）によってアカウントへのアクセスが制限されています。</span>
             </p>
             <div className="mt-3 p-3 rounded-lg bg-rose-950/30 border border-rose-900/40 text-xs text-rose-300">
               Please contact administrator Anil Gaur to request access restoration.

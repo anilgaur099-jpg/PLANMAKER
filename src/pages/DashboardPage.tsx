@@ -113,8 +113,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {settings.showHinglish
-              ? 'Mukhya Dashbord • Purane container plans, models aur CBM aakde'
+            {settings.language === 'ja'
+              ? '中古車輸出コンテナ積載実績・モデル別統計・CBM容積サマリー'
               : 'Japanese used vehicle container fleet analytics and historical manifests'}
           </p>
         </div>
@@ -148,7 +148,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
             {totalContainers.toLocaleString()}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {settings.showHinglish ? 'Kul Container Plans' : 'Historical container manifests'}
+            {settings.language === 'ja' ? '登録コンテナ積載数' : 'Historical container manifests'}
           </div>
         </div>
 
@@ -161,7 +161,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
             {totalVehicles.toLocaleString()}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {settings.showHinglish ? 'Export ki gayi gaadiyan' : 'Indexed across all plans'}
+            {settings.language === 'ja' ? '積載対象車両総数' : 'Indexed across all plans'}
           </div>
         </div>
 
@@ -174,7 +174,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
             {avgCbm} <span className="text-xs font-sans text-slate-500 font-normal">m³</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {settings.showHinglish ? 'Ausat aayatan (Target ~72-75 m³)' : 'Volume efficiency index'}
+            {settings.language === 'ja' ? 'コンテナ平均容積（目標 72〜75 m³）' : 'Volume efficiency index'}
           </div>
         </div>
 
@@ -187,7 +187,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
             {avgWeight.toLocaleString()} <span className="text-xs font-sans text-slate-500 font-normal">kg</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {settings.showHinglish ? 'Ausat wajan prat container' : 'Excluding tare container weight'}
+            {settings.language === 'ja' ? 'コンテナ平均積載重量' : 'Excluding tare container weight'}
           </div>
         </div>
       </div>
@@ -202,7 +202,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
                 Top Export Vehicle Models
               </h3>
               <p className="text-xs text-slate-500">
-                {settings.showHinglish ? 'Sabse zyada pack hone wale models' : 'Most frequent vehicle models loaded into containers'}
+                {settings.language === 'ja' ? '積載実績の多い輸出上位車種' : 'Most frequent vehicle models loaded into containers'}
               </p>
             </div>
             <button
@@ -251,7 +251,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
               Engine Fuel Distribution
             </h3>
             <p className="text-xs text-slate-500">
-              {settings.showHinglish ? 'Diesel aur Petrol anupaat' : 'Diesel (commercial) vs Gasoline (passenger)'}
+              {settings.language === 'ja' ? 'ディーゼル（商用車）vs ガソリン（乗用車）比率' : 'Diesel (commercial) vs Gasoline (passenger)'}
             </p>
           </div>
 
@@ -313,7 +313,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
                 Top Chassis Prefixes
               </h3>
               <p className="text-xs text-slate-500">
-                {settings.showHinglish ? 'Mukhya chassis code (FE315, KDH206, NPR58)' : 'Crucial for accurate dimensions & parts verification'}
+                {settings.language === 'ja' ? '主要車台型式プレフィックス（FE315, KDH206, NPR58等）' : 'Crucial for accurate dimensions & parts verification'}
               </p>
             </div>
             <button
@@ -360,7 +360,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenImport, onOp
                   Recent Container Plans
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {settings.showHinglish ? 'Hali me add kiye gaye plans' : 'Last loaded shipping manifests'}
+                  {settings.language === 'ja' ? '最近登録・作成されたコンテナプラン' : 'Last loaded shipping manifests'}
                 </p>
               </div>
               <button
