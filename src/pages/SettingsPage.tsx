@@ -156,9 +156,9 @@ export const SettingsPage: React.FC = () => {
           </span>
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          {settings.showHinglish
-            ? 'Container limits, presets, scale testing aur database backup'
-            : 'Configure container loading constraints, language helpers, and offline IndexedDB archive'}
+          {settings.language === 'ja'
+            ? 'コンテナ許容値、言語設定（英語 / 日本語）、バックアップおよび同期管理'
+            : 'Configure container loading constraints, language preferences (EN / JA), and Firestore cloud sync'}
         </p>
       </div>
 
@@ -309,28 +309,39 @@ export const SettingsPage: React.FC = () => {
           {/* Interface Preferences */}
           <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Language & Theme
+              Language & UI Theme / 言語・表示設定
             </h2>
             <div className="flex flex-wrap items-center gap-6 text-xs">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.showHinglish}
-                  onChange={(e) => updateSettings({ showHinglish: e.target.checked })}
-                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
-                />
-                <div>
-                  <div className="font-semibold text-slate-900 dark:text-slate-100">
-                    Enable Hindi / Hinglish Helper Labels
-                  </div>
-                  <div className="text-[11px] text-slate-500">
-                    Shows Hindi / Hinglish hints next to English fields (e.g. 'Container No / कंटेनर नंबर')
-                  </div>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Language / 言語:</span>
+                <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-950 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ language: 'en', showJapaneseSubtitles: true })}
+                    className={`px-3 py-1.5 rounded-md text-xs cursor-pointer transition-all ${
+                      settings.language === 'en'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    English (EN)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ language: 'ja', showJapaneseSubtitles: true })}
+                    className={`px-3 py-1.5 rounded-md text-xs cursor-pointer transition-all ${
+                      settings.language === 'ja'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    日本語 (JA)
+                  </button>
                 </div>
-              </label>
+              </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-slate-600 dark:text-slate-400 font-medium">Theme:</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Theme / テーマ:</span>
                 <button
                   onClick={() => updateSettings({ theme: 'light' })}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
@@ -664,7 +675,7 @@ export const SettingsPage: React.FC = () => {
               3. Strict Historical Plan Verification (Zero AI / Zero Predictions)
             </h3>
             <p className="font-medium text-emerald-700 dark:text-emerald-400">
-              ✓ Jo aap old plans upload karte hain, sirf unhi plans se match check hokar naya container banta hai aur confirm hota hai:
+              ✓ Only uploaded historical plans are matched and verified. Zero synthetic AI predictions:
             </p>
             <ol className="list-decimal pl-5 space-y-1.5 text-[11px]">
               <li>
@@ -674,7 +685,7 @@ export const SettingsPage: React.FC = () => {
                 <strong>Level 2 (Exact Historical Model Combination Match):</strong> Checks uploaded plans for proven 4-vehicle multiset combinations.
               </li>
               <li>
-                <strong>Strict Unmatched Safety:</strong> Koi prediction ya synthetic guess nahi hota. Agar kisi gaadi ka purana combination uploaded records me nahi hai, toh vo Unmatched Vehicles me rehti hai taaki aap sirf 100% verified plans hi confirm karein.
+                <strong>Strict Unmatched Safety:</strong> Zero guesswork. If a vehicle combination has not previously been uploaded in a past plan, it remains under Unmatched Vehicles so you only confirm 100% verified manifests. (過去プランに存在しない組合せは未照合として保持され、推測作成は行われません).
               </li>
             </ol>
           </div>

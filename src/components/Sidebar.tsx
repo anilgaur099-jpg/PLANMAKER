@@ -34,44 +34,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
 
   const totalContainers = containers.length;
   const totalVehicles = containers.reduce((sum, c) => sum + (c.vehicleCount || c.vehicles?.length || 0), 0);
+  const isJa = settings.language === 'ja';
 
   const navItems = [
     {
       id: 'dashboard' as const,
-      label: 'Dashboard',
-      hi: 'डैशबोर्ड',
+      label: isJa ? 'ダッシュボード' : 'Dashboard',
+      sub: isJa ? 'Dashboard' : 'ダッシュボード',
       icon: LayoutDashboard,
     },
     {
       id: 'library' as const,
-      label: 'Plan Library',
-      hi: 'कंटेनर संग्रह',
+      label: isJa ? '積載プラン一覧' : 'Plan Library',
+      sub: isJa ? 'Plan Archive' : '積載実績一覧',
       icon: FolderKanban,
       badge: totalContainers,
     },
     {
       id: 'search' as const,
-      label: 'Search & Models',
-      hi: 'मॉडल व चेसिस खोज',
+      label: isJa ? '型式・車台検索' : 'Search & Models',
+      sub: isJa ? 'Search & Insights' : '型式・車台検索',
       icon: Search,
     },
     {
       id: 'builder' as const,
-      label: 'Plan Builder',
-      hi: 'पुराना प्लान चेकर',
+      label: isJa ? 'プラン作成' : 'Plan Builder',
+      sub: isJa ? 'Pattern Match' : '実績照合プラン作成',
       icon: ShieldCheck,
       highlight: true,
     },
     {
       id: 'settings' as const,
-      label: 'Settings',
-      hi: 'सेटिंग्स',
+      label: isJa ? '設定' : 'Settings',
+      sub: isJa ? 'Configuration' : 'システム設定',
       icon: Settings,
     },
     {
       id: 'admin' as const,
-      label: 'Admin & Users',
-      hi: 'एडमिन कंट्रोल',
+      label: isJa ? '管理者パネル' : 'Admin & Users',
+      sub: isJa ? 'Access Control' : 'ユーザー・権限管理',
       icon: ShieldAlert,
     },
   ];
@@ -152,9 +153,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
                   />
                   <div className="truncate">
                     <div className="leading-tight">{item.label}</div>
-                    {settings.showHinglish && item.hi && (
+                    {item.sub && (
                       <div className="text-[10px] text-slate-400 dark:text-slate-500 font-normal leading-tight">
-                        {item.hi}
+                        {item.sub}
                       </div>
                     )}
                   </div>
@@ -221,18 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
 
         {/* Footer Quick Controls */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1">
-          {/* Hinglish Toggle Button */}
+          {/* Language Toggle: English (EN) / 日本語 (JA) */}
           <button
-            onClick={() => updateSettings({ showHinglish: !settings.showHinglish })}
-            title={settings.showHinglish ? 'Hinglish labels enabled' : 'English only'}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-              settings.showHinglish
-                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
-                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900'
-            }`}
+            onClick={() => updateSettings({ language: isJa ? 'en' : 'ja' })}
+            title={isJa ? 'Switch to English' : '日本語に切り替え'}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-900/60 hover:bg-sky-100 dark:hover:bg-sky-900/50"
           >
-            <Languages className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-medium">{settings.showHinglish ? 'हिंदी ON' : 'EN Only'}</span>
+            <Languages className="w-3.5 h-3.5 text-sky-500" />
+            <span className="text-[11px] font-bold tracking-tight">{isJa ? '日本語 (JA)' : 'English (EN)'}</span>
           </button>
 
           {/* Theme Toggle */}
