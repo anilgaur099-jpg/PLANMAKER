@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppSettings, Container, ContainerPreset, PlannedContainer, AppUserAccess, AccessControlConfig } from '../types';
-import { initDatabase, db, getAllContainersWithVehicles, addContainerWithVehicles } from '../db/db';
+import { initDatabase, db, getAllContainersWithVehicles, addContainerWithVehicles, upsertContainerByNo } from '../db/db';
 
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, testConnection, loginWithGoogle, logoutUser } from '../firebase/config';
@@ -9,6 +9,7 @@ import {
   deleteContainerFromFirestore,
   getContainersFromFirestore,
   syncContainersToFirestore,
+  subscribeToContainers,
 } from '../firebase/firestoreService';
 import {
   fetchAccessConfig,
@@ -198,36 +199,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Initial load
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await initDatabase();
-        await refreshContainers();
-      } catch (err) {
-        console.error('Failed to init database', err);
-      }
-    };
-    init();
-  }, []);
-
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Monitor Firebase Auth state
+  // Initial load: Load local database first, then automatically sync all containers from Firebase Firestore
+  useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        await initDatabase();
+        const local = await getAllContainersWithVehicles();
+        if (isMounted && local.length > 0) {
+          setContainers(local);
+          // If local has plans, auto-sync to Firestore in background so other devices immediately receive them
+          syncContainersToFirestore(local).catch((e) => console.warn('Background Firestore push note:', e));
+        }
+
+        // Fetch all containers from Firestore immediately so new devices/logins get complete cloud database
+        const cloudContainers = await getContainersFromFirestore();
+        if (cloudContainers && cloudContainers.length > 0) {
+          for (const c of cloudContainers) {
+            await upsertContainerByNo(c);
+          }
+          const merged = await getAllContainersWithVehicles();
+          if (isMounted) {
+            setContainers(merged);
+            setIsCloudConnected(true);
+            setCloudSyncStatus('synced');
+          }
+        }
+      } catch (err) {
+        console.error('Database initialization note:', err);
+      }
+    };
+
+    init();
+
+    // Real-time Firestore subscription so ANY computer, phone, or account sees updates instantly
+    const unsubscribeSnapshot = subscribeToContainers(
+      async (liveCloudContainers) => {
+        if (!isMounted) return;
+        if (liveCloudContainers && liveCloudContainers.length > 0) {
+          setIsCloudConnected(true);
+          setCloudSyncStatus('synced');
+          setContainers(liveCloudContainers);
+
+          // Update local IndexedDB cache in background
+          for (const c of liveCloudContainers) {
+            upsertContainerByNo(c).catch(() => {});
+          }
+        }
+      },
+      (err) => {
+        console.warn('Real-time Firestore listener note:', err);
+      }
+    );
+
+    // Verify Firestore connection
+    testConnection().then((connected) => {
+      if (isMounted) setIsCloudConnected(connected);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribeSnapshot();
+    };
+  }, []);
+
+  // Monitor Firebase Auth state if needed
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
     });
     return () => unsubscribe();
-  }, []);
-
-  // Check Firestore server connection on startup
-  useEffect(() => {
-    testConnection().then((connected) => {
-      setIsCloudConnected(connected);
-    });
   }, []);
 
   const syncToCloud = async (): Promise<{ success: number; failed: number }> => {

@@ -131,6 +131,20 @@ export async function updateContainerWithVehicles(containerId: number, container
 }
 
 /**
+ * Upserts a container and its vehicles based on containerNo.
+ * If container with matching containerNo exists, updates it. Otherwise adds it.
+ */
+export async function upsertContainerByNo(container: Container): Promise<void> {
+  const cleanNo = container.containerNo.trim().toUpperCase();
+  const existing = await db.containers.where('containerNo').equalsIgnoreCase(cleanNo).first();
+  if (existing && existing.id) {
+    await updateContainerWithVehicles(existing.id, container);
+  } else {
+    await addContainerWithVehicles(container);
+  }
+}
+
+/**
  * Deletes a container and its vehicles.
  */
 export async function deleteContainer(containerId: number): Promise<Container | null> {
