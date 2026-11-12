@@ -39,6 +39,7 @@ export async function saveContainerToFirestore(container: Container): Promise<vo
       createdAt: container.createdAt || Date.now(),
       updatedAt: Date.now(),
       notes: container.notes || '',
+      remark: container.remark || container.notes || '',
       matchedFromContainerNo: container.matchedFromContainerNo || '',
       vehicles: container.vehicles.map((v) => ({
         id: v.id,
@@ -58,6 +59,7 @@ export async function saveContainerToFirestore(container: Container): Promise<vo
         price: Number(v.price) || 0,
         weight: Number(v.weight) || 0,
         cbm: Number(v.cbm) || 0,
+        remark: v.remark || '',
       })),
     };
 
@@ -104,6 +106,7 @@ export async function getContainersFromFirestore(): Promise<Container[]> {
         createdAt: Number(data.createdAt) || Date.now(),
         updatedAt: Number(data.updatedAt) || Date.now(),
         notes: data.notes || '',
+        remark: data.remark || data.notes || '',
         matchedFromContainerNo: data.matchedFromContainerNo || '',
         vehicles: (data.vehicles || []).map((v: any, idx: number) => ({
           id: v.id || `v-${d.id}-${idx}`,
@@ -123,6 +126,7 @@ export async function getContainersFromFirestore(): Promise<Container[]> {
           price: Number(v.price) || 0,
           weight: Number(v.weight) || 0,
           cbm: Number(v.cbm) || 0,
+          remark: v.remark || '',
         })),
       });
     });
@@ -161,6 +165,7 @@ export function subscribeToContainers(
           createdAt: Number(data.createdAt) || Date.now(),
           updatedAt: Number(data.updatedAt) || Date.now(),
           notes: data.notes || '',
+          remark: data.remark || data.notes || '',
           matchedFromContainerNo: data.matchedFromContainerNo || '',
           vehicles: (data.vehicles || []).map((v: any, idx: number) => ({
             id: v.id || `v-${d.id}-${idx}`,
@@ -180,6 +185,7 @@ export function subscribeToContainers(
             price: Number(v.price) || 0,
             weight: Number(v.weight) || 0,
             cbm: Number(v.cbm) || 0,
+            remark: v.remark || '',
           })),
         });
       });
@@ -228,6 +234,7 @@ export async function syncContainersToFirestore(
             createdAt: c.createdAt || Date.now(),
             updatedAt: Date.now(),
             notes: c.notes || '',
+            remark: c.remark || c.notes || '',
             matchedFromContainerNo: c.matchedFromContainerNo || '',
             vehicles: (c.vehicles || []).map((v) => ({
               id: v.id,
@@ -247,6 +254,7 @@ export async function syncContainersToFirestore(
               price: Number(v.price) || 0,
               weight: Number(v.weight) || 0,
               cbm: Number(v.cbm) || 0,
+              remark: v.remark || '',
             })),
           },
           { merge: true }

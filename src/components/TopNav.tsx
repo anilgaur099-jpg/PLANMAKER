@@ -17,12 +17,9 @@ export const TopNav: React.FC<TopNavProps> = ({
     activePage,
     setActivePage,
     containers,
-    isCloudConnected,
-    cloudSyncStatus,
     currentUser,
     sessionUser,
     logoutSessionUser,
-    syncToCloud,
     adminUnlockedWithPin,
   } = useApp();
 
@@ -92,40 +89,8 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
       </nav>
 
-      {/* Zone 3: Actions & Cloud Sync */}
+      {/* Zone 3: Actions & User Session */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Firebase Cloud Sync Status */}
-        <button
-          onClick={() => syncToCloud()}
-          disabled={cloudSyncStatus === 'syncing'}
-          title={
-            isCloudConnected
-              ? 'Firebase Firestore is active. Click to backup all container plans to cloud.'
-              : 'Firebase Cloud connecting...'
-          }
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
-            cloudSyncStatus === 'syncing'
-              ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
-              : isCloudConnected
-              ? 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
-          }`}
-        >
-          {cloudSyncStatus === 'syncing' ? (
-            <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-500" />
-          ) : (
-            <div className="relative">
-              <Cloud className="w-3.5 h-3.5 text-sky-500" />
-              {isCloudConnected && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              )}
-            </div>
-          )}
-          <span className="hidden sm:inline">
-            {cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Cloud Backup'}
-          </span>
-        </button>
-
         {/* User Auth Info / Session Status */}
         {sessionUser || adminUnlockedWithPin ? (
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">

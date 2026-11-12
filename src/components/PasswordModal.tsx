@@ -82,13 +82,13 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
               {description}
             </p>
             <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
-              Enter authorization password to proceed / 認証用パスワードを入力してください。
+              Enter authorization password to proceed.
             </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-              Enter Security Password / パスワード入力
+              Enter Security Password
             </label>
             <div className="relative">
               <input
@@ -119,7 +119,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
             {error && (
               <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium pt-1">
                 <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                <span>Incorrect Password! Access denied. / パスワードが正しくありません。</span>
+                <span>Incorrect Password! Access denied.</span>
               </div>
             )}
           </div>

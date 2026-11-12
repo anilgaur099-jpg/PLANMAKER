@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppSettings, Container, ContainerPreset, PlannedContainer, AppUserAccess, AccessControlConfig } from '../types';
-import { initDatabase, db, getAllContainersWithVehicles, addContainerWithVehicles, upsertContainerByNo } from '../db/db';
+import { initDatabase, db, getAllContainersWithVehicles, addContainerWithVehicles, upsertContainerByNo, bulkSaveContainers } from '../db/db';
 
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, testConnection, loginWithGoogle, logoutUser } from '../firebase/config';
@@ -91,6 +91,7 @@ interface AppContextType {
   // Admin & User Access Control (Made by Anil Gaur)
   sessionUser: AppUserAccess | null;
   loginWithCredentials: (id: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  loginAsGuestViewer: () => void;
   logoutSessionUser: () => void;
   updateMasterPassword: (newPass: string) => Promise<void>;
   isAdmin: boolean;
@@ -115,8 +116,6 @@ const SETTINGS_STORAGE_KEY = 'cpm_app_settings_v1';
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'en',
-  showJapaneseSubtitles: true,
-  showHinglish: false,
   theme: 'dark', // Modern dark mode default for enterprise logistics
   activePresetId: '40hc',
   maxVehicles: 4,
@@ -142,9 +141,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          language: parsed.language || 'en',
-          showJapaneseSubtitles: parsed.showJapaneseSubtitles !== false,
-          showHinglish: false,
+          language: 'en',
         };
       }
     } catch (e) {
@@ -194,14 +191,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshContainers = async () => {
     try {
       setIsLoadingContainers(true);
-      const data = await getAllContainersWithVehicles();
-      setContainers(data);
+      const cloudContainers = await getContainersFromFirestore().catch(() => []);
+      if (cloudContainers && cloudContainers.length > 0) {
+        setContainers(cloudContainers);
+        setIsCloudConnected(true);
+        setCloudSyncStatus('synced');
+        bulkSaveContainers(cloudContainers).catch(() => {});
+      } else {
+        const local = await getAllContainersWithVehicles();
+        setContainers(local);
+      }
     } catch (err) {
-      console.error('Error loading containers from Dexie', err);
+      console.error('Error refreshing containers from database', err);
       addToast({
         type: 'error',
         title: 'Database Load Error',
-        description: 'Failed to read records from IndexedDB.',
+        description: 'Failed to refresh records from database.',
       });
     } finally {
       setIsLoadingContainers(false);
@@ -212,53 +217,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Initial load: Load local database first, then automatically sync all containers from Firebase Firestore
+  // Initial load & real-time sync: ensures zero data loss and instant display across all shared devices
   useEffect(() => {
     let isMounted = true;
 
     const init = async () => {
       try {
         await initDatabase();
+        // 1. Read existing local storage immediately so existing devices show cached data instantly
         const local = await getAllContainersWithVehicles();
         if (isMounted && local.length > 0) {
           setContainers(local);
-          // If local has plans, auto-sync to Firestore in background so other devices immediately receive them
-          syncContainersToFirestore(local).catch((e) => console.warn('Background Firestore push note:', e));
+          setIsLoadingContainers(false);
         }
 
-        // Fetch all containers from Firestore immediately so new devices/logins get complete cloud database
+        // 2. Fetch all cloud containers from Firestore (master cloud source)
         const cloudContainers = await getContainersFromFirestore();
         if (cloudContainers && cloudContainers.length > 0) {
-          for (const c of cloudContainers) {
-            await upsertContainerByNo(c);
-          }
-          const merged = await getAllContainersWithVehicles();
           if (isMounted) {
-            setContainers(merged);
+            // Set state immediately so friend / new device sees all updated containers instantly
+            setContainers(cloudContainers);
             setIsCloudConnected(true);
             setCloudSyncStatus('synced');
+            setIsLoadingContainers(false);
           }
+          // Fast bulk cache into IndexedDB in background without blocking UI
+          bulkSaveContainers(cloudContainers).catch((e) =>
+            console.warn('Background IndexedDB cache note:', e)
+          );
+        } else if (isMounted && (!local || local.length === 0)) {
+          setIsLoadingContainers(false);
         }
       } catch (err) {
         console.error('Database initialization note:', err);
+        if (isMounted) setIsLoadingContainers(false);
       }
     };
 
     init();
 
-    // Real-time Firestore subscription so ANY computer, phone, or account sees updates instantly
+    // Real-time Firestore subscription: updates friend's screen the second Anil Gaur updates any plan
     const unsubscribeSnapshot = subscribeToContainers(
-      async (liveCloudContainers) => {
+      (liveCloudContainers) => {
         if (!isMounted) return;
-        if (liveCloudContainers && liveCloudContainers.length > 0) {
-          setIsCloudConnected(true);
-          setCloudSyncStatus('synced');
-          setContainers(liveCloudContainers);
+        try {
+          if (liveCloudContainers && liveCloudContainers.length > 0) {
+            setIsCloudConnected(true);
+            setCloudSyncStatus('synced');
+            // Update state immediately across all shared browser sessions
+            setContainers(liveCloudContainers);
+            setIsLoadingContainers(false);
 
-          // Update local IndexedDB cache in background
-          for (const c of liveCloudContainers) {
-            upsertContainerByNo(c).catch(() => {});
+            // Bulk save to local IndexedDB in background
+            bulkSaveContainers(liveCloudContainers).catch((e) =>
+              console.warn('Real-time background cache note:', e)
+            );
           }
+        } catch (subErr) {
+          console.warn('Real-time sync merge note:', subErr);
         }
       },
       (err) => {
@@ -519,6 +535,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
   };
 
+  const loginAsGuestViewer = () => {
+    const viewerUser: AppUserAccess = {
+      id: 'guest-viewer',
+      email: 'viewer@cpm.internal',
+      username: 'viewer',
+      displayName: 'Authorized Viewer',
+      role: 'viewer',
+      status: 'active',
+      createdAt: Date.now(),
+      lastActive: Date.now(),
+    };
+    setSessionUser(viewerUser);
+    localStorage.setItem(SESSION_USER_KEY, JSON.stringify(viewerUser));
+    addToast({
+      type: 'info',
+      title: 'Viewer Access Granted',
+      description: 'Viewing real-time container plans and vehicle specifications.',
+    });
+  };
+
   const updateMasterPassword = async (newPass: string) => {
     const updatedCfg = { ...accessConfig, masterPassword: newPass.trim() };
     setAccessConfig(updatedCfg);
@@ -671,6 +707,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signOutUser,
         sessionUser,
         loginWithCredentials,
+        loginAsGuestViewer,
         logoutSessionUser,
         updateMasterPassword,
         isAdmin,

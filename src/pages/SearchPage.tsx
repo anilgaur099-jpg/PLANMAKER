@@ -244,9 +244,7 @@ export const SearchPage: React.FC = () => {
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {settings.language === 'ja'
-              ? '車種・車台型式・コンテナ番号から瞬時に過去実績を検索 • 寸法統計・仕様履歴分析'
-              : 'Indexed search across past container manifests with dimension statistics & variation analysis'}
+            Indexed search across past container manifests with dimension statistics & variation analysis
           </p>
         </div>
 
@@ -667,7 +665,7 @@ export const SearchPage: React.FC = () => {
                       {/* Remark pill if present */}
                       {(c.remark || c.notes) && (
                         <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900/60 w-fit">
-                          <span className="font-semibold uppercase text-[9px]">Remark / 積載備考:</span>
+                          <span className="font-semibold uppercase text-[9px]">Remark:</span>
                           <span className="font-sans font-medium">{c.remark || c.notes}</span>
                         </div>
                       )}

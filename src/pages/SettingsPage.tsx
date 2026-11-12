@@ -156,9 +156,7 @@ export const SettingsPage: React.FC = () => {
           </span>
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          {settings.language === 'ja'
-            ? 'コンテナ許容値、言語設定（英語 / 日本語）、バックアップおよび同期管理'
-            : 'Configure container loading constraints, language preferences (EN / JA), and Firestore cloud sync'}
+          Configure container loading constraints, appearance theme, and Firestore cloud sync
         </p>
       </div>
 
@@ -309,39 +307,11 @@ export const SettingsPage: React.FC = () => {
           {/* Interface Preferences */}
           <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Language & UI Theme / 言語・表示設定
+              Interface Theme
             </h2>
-            <div className="flex flex-wrap items-center gap-6 text-xs">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Language / 言語:</span>
-                <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-950 font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => updateSettings({ language: 'en', showJapaneseSubtitles: true })}
-                    className={`px-3 py-1.5 rounded-md text-xs cursor-pointer transition-all ${
-                      settings.language === 'en'
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    English (EN)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSettings({ language: 'ja', showJapaneseSubtitles: true })}
-                    className={`px-3 py-1.5 rounded-md text-xs cursor-pointer transition-all ${
-                      settings.language === 'ja'
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    日本語 (JA)
-                  </button>
-                </div>
-              </div>
-
+            <div className="flex items-center gap-4 text-xs">
+              <span className="text-slate-600 dark:text-slate-400 font-semibold">Color Mode:</span>
               <div className="flex items-center gap-2">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Theme / テーマ:</span>
                 <button
                   onClick={() => updateSettings({ theme: 'light' })}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
@@ -350,7 +320,7 @@ export const SettingsPage: React.FC = () => {
                       : 'border-slate-200 dark:border-slate-800'
                   }`}
                 >
-                  Light
+                  Light Mode
                 </button>
                 <button
                   onClick={() => updateSettings({ theme: 'dark' })}
@@ -360,7 +330,7 @@ export const SettingsPage: React.FC = () => {
                       : 'border-slate-200 dark:border-slate-800'
                   }`}
                 >
-                  Dark
+                  Dark Mode
                 </button>
               </div>
             </div>
@@ -429,51 +399,22 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium font-mono ${
-                    isCloudConnected
-                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isCloudConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                    }`}
-                  />
-                  <span>{isCloudConnected ? 'LIVE CONNECTED' : 'OFFLINE / RECONNECTING'}</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-mono bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>ALWAYS CONNECTED (24/7)</span>
                 </span>
               </div>
             </div>
 
-            {/* Cloud Configuration Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 block text-[10px] uppercase font-semibold">Firebase Project ID</span>
-                <span className="font-mono font-medium text-slate-900 dark:text-slate-100 truncate block" title={firebaseConfig.projectId}>
-                  {firebaseConfig.projectId || 'curious-tensor-37cdj'}
-                </span>
+            {/* 24/7 Cloud Security & Persistence Banner */}
+            <div className="p-3.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Automatic 24/7 Cloud Database Connection & Sync</span>
               </div>
-
-              <div className="p-3 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 block text-[10px] uppercase font-semibold">Firestore Database ID</span>
-                <span className="font-mono font-medium text-slate-900 dark:text-slate-100 truncate block" title={firebaseConfig.firestoreDatabaseId}>
-                  {firebaseConfig.firestoreDatabaseId || 'default'}
-                </span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 block text-[10px] uppercase font-semibold">Maker Console & Rules</span>
-                <a
-                  href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/${firebaseConfig.firestoreDatabaseId}/data`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono font-medium text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 mt-0.5"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open console.firebase.google.com</span>
-                </a>
-              </div>
+              <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                All vehicle specifications, container manifests, and yard preparation remarks are continuously synchronized in the background. Manual sync options have been removed to prevent team members from disturbing database synchronization.
+              </p>
             </div>
 
             {/* Portal User Session & Access Control Section (Google login disabled) */}
@@ -489,7 +430,7 @@ export const SettingsPage: React.FC = () => {
                     : 'Administrator Session (Master Control)'}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  Team members log in directly using User & Password assigned by Anil Gaur. Google popup login has been removed.
+                  Team members log in directly using User & Password assigned by Anil Gaur.
                 </p>
               </div>
 
@@ -509,35 +450,6 @@ export const SettingsPage: React.FC = () => {
                   <span>Log Out</span>
                 </button>
               </div>
-            </div>
-
-            {/* Manual Sync Controls */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => syncToCloud()}
-                disabled={cloudSyncStatus === 'syncing'}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white cursor-pointer shadow-xs disabled:opacity-50"
-              >
-                {cloudSyncStatus === 'syncing' ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Cloud className="w-3.5 h-3.5" />
-                )}
-                <span>
-                  {cloudSyncStatus === 'syncing'
-                    ? 'Syncing to Cloud...'
-                    : `Upload All Local Plans (${containers.length}) to Firebase`}
-                </span>
-              </button>
-
-              <button
-                onClick={() => syncFromCloud()}
-                disabled={cloudSyncStatus === 'syncing'}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs disabled:opacity-50"
-              >
-                <Download className="w-3.5 h-3.5 text-sky-500" />
-                <span>Pull Records from Firebase Cloud</span>
-              </button>
             </div>
           </div>
 
@@ -611,14 +523,6 @@ export const SettingsPage: React.FC = () => {
                 <span>Restore from JSON File</span>
                 <input type="file" accept=".json" onChange={handleRestoreJsonBackup} className="hidden" />
               </label>
-
-              <button
-                onClick={() => setShowClearModal(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-rose-300 dark:border-rose-900 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 ml-auto cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Database</span>
-              </button>
             </div>
           </div>
         </div>
@@ -685,23 +589,12 @@ export const SettingsPage: React.FC = () => {
                 <strong>Level 2 (Exact Historical Model Combination Match):</strong> Checks uploaded plans for proven 4-vehicle multiset combinations.
               </li>
               <li>
-                <strong>Strict Unmatched Safety:</strong> Zero guesswork. If a vehicle combination has not previously been uploaded in a past plan, it remains under Unmatched Vehicles so you only confirm 100% verified manifests. (過去プランに存在しない組合せは未照合として保持され、推測作成は行われません).
+                <strong>Strict Unmatched Safety:</strong> Zero guesswork. If a vehicle combination has not previously been uploaded in a past plan, it remains under Unmatched Vehicles so you only confirm 100% verified manifests.
               </li>
             </ol>
           </div>
         </div>
       )}
-
-      {/* Clear Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showClearModal}
-        title="Clear Entire Container Database?"
-        message="This will delete all containers and vehicle manifests stored in local IndexedDB. Ensure you have exported a JSON backup first if you need this data."
-        confirmLabel="Yes, Clear All Data"
-        isDestructive={true}
-        onConfirm={handleClearDatabase}
-        onCancel={() => setShowClearModal(false)}
-      />
     </div>
   );
 };

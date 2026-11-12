@@ -145,6 +145,99 @@ export async function upsertContainerByNo(container: Container): Promise<void> {
 }
 
 /**
+ * High-performance bulk save for cloud-synchronized containers.
+ * Processes hundreds/thousands of containers and vehicle rows rapidly.
+ */
+export async function bulkSaveContainers(containersList: Container[]): Promise<void> {
+  if (!containersList || containersList.length === 0) return;
+
+  try {
+    await db.transaction('rw', db.containers, db.vehicles, async () => {
+      const existing = await db.containers.toArray();
+      const existingMap = new Map(existing.map((c) => [c.containerNo.trim().toUpperCase(), c]));
+
+      const containersToPut: Container[] = [];
+      const vehiclesToDeleteByContainerId: number[] = [];
+      const allVehiclesToPut: Vehicle[] = [];
+
+      for (const container of containersList) {
+        const cleanNo = container.containerNo.trim().toUpperCase();
+        const existingContainer = existingMap.get(cleanNo);
+        const targetId = existingContainer?.id || container.id;
+
+        const modelsSet = new Set<string>();
+        const prefixesSet = new Set<string>();
+        let totalCbm = 0;
+        let totalWeight = 0;
+        let totalPrice = 0;
+
+        const vehicles = container.vehicles || [];
+        vehicles.forEach((v, idx) => {
+          v.serialNo = idx + 1;
+          v.chassisPrefix = v.chassisPrefix || extractChassisPrefix(v.chassisNo);
+          const calcCbm = calculateCbm(v.length, v.width, v.height);
+          v.calculatedCbm = calcCbm;
+          v.cbmMismatch = hasCbmMismatch(v.cbm, calcCbm);
+          totalCbm += v.cbm || 0;
+          totalWeight += v.weight || 0;
+          totalPrice += v.price || 0;
+          if (v.model) modelsSet.add(v.model.toUpperCase().trim());
+          if (v.chassisPrefix) prefixesSet.add(v.chassisPrefix.toUpperCase().trim());
+        });
+
+        const containerMeta: Container = {
+          ...container,
+          containerNo: cleanNo,
+          totalCbm: Math.round(totalCbm * 1000) / 1000,
+          totalWeight,
+          totalPrice,
+          vehicleCount: vehicles.length,
+          models: Array.from(modelsSet),
+          chassisPrefixes: Array.from(prefixesSet),
+          createdAt: container.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        if (targetId) {
+          containerMeta.id = targetId;
+          vehiclesToDeleteByContainerId.push(targetId);
+        }
+
+        containersToPut.push(containerMeta);
+      }
+
+      // Delete existing vehicles for updated containers in bulk
+      if (vehiclesToDeleteByContainerId.length > 0) {
+        await db.vehicles.where('containerId').anyOf(vehiclesToDeleteByContainerId).delete();
+      }
+
+      // Bulk put container manifests
+      const putIds = await db.containers.bulkPut(containersToPut, { allKeys: true });
+
+      // Prepare child vehicle rows with valid containerId
+      containersToPut.forEach((c, idx) => {
+        const cid = (putIds && (putIds as any)[idx]) || c.id;
+        const vList = containersList[idx].vehicles || [];
+        vList.forEach((v, vIdx) => {
+          allVehiclesToPut.push({
+            ...v,
+            id: v.id || `v-${c.containerNo}-${vIdx}-${Math.random().toString(36).slice(2, 7)}`,
+            containerId: cid,
+            containerNo: c.containerNo,
+          });
+        });
+      });
+
+      if (allVehiclesToPut.length > 0) {
+        await db.vehicles.bulkPut(allVehiclesToPut);
+      }
+    });
+  } catch (err) {
+    console.warn('bulkSaveContainers background cache warning:', err);
+  }
+}
+
+/**
  * Deletes a container and its vehicles.
  */
 export async function deleteContainer(containerId: number): Promise<Container | null> {

@@ -156,18 +156,18 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         setImportProgress({ processed, total });
       });
 
-      // Background cloud sync to Firebase Firestore
-      syncContainersToFirestore(finalToImport).catch((e) =>
-        console.warn('Background Firestore sync note:', e)
-      );
+      // Synchronously write to Firebase Firestore so all records are committed 24/7 before closing
+      await syncContainersToFirestore(finalToImport, (processed, total) => {
+        setImportProgress({ processed, total });
+      });
 
       addToast({
         type: 'success',
-        title: 'Import Successful',
+        title: 'Import & Cloud Sync Complete',
         description: `Imported ${finalToImport.length} containers (${finalToImport.reduce(
           (acc, c) => acc + c.vehicles.length,
           0
-        )} vehicles) into database & syncing to Firebase.`,
+        )} vehicles) into database & synchronized 24/7 with Cloud Firestore.`,
       });
 
       onImportComplete();
@@ -326,12 +326,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </div>
               )}
 
-              {/* Step-by-Step English & Japanese Guide & Visual Format Table */}
+              {/* Step-by-Step English Guide & Visual Format Table */}
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-sky-600" />
-                    <span>Excel File Format Guide / Excelインポート仕様書:</span>
+                    <span>Excel File Format Guide:</span>
                   </div>
                   <button
                     onClick={downloadBlankExcelTemplate}
@@ -345,31 +345,28 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      1. File Format / ファイル形式
+                      1. File Format
                     </span>
                     <p>
                       Upload <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong> files, or copy rows directly from Excel and paste above.
-                      <span className="block mt-0.5 text-slate-500">.xlsx、.xls、.csv またはExcelからの直接コピー貼り付けに対応。</span>
                     </p>
                   </div>
 
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      2. Stacked 4-Row Block / コンテナ基本情報
+                      2. Stacked 4-Row Block
                     </span>
                     <p>
                       Column A rows 1-3 contain <strong>Container No</strong>, <strong>Seal No</strong>, and <strong>Tare Weight</strong>. Row 4 is a blank separator.
-                      <span className="block mt-0.5 text-slate-500">A列の3行にコンテナ番号・シール・風袋重量を配置。</span>
                     </p>
                   </div>
 
                   <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                     <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                      3. Columns B to P (Vehicles) / 積載車両情報
+                      3. Columns B to P (Vehicles)
                     </span>
                     <p>
                       Columns B onward record vehicle details: Make, Model, CC, Fuel, Year, Chassis No, Dimensions, Weight, CBM.
-                      <span className="block mt-0.5 text-slate-500">B列以降に車名、型式、車台番号、寸法、CBMを配置。</span>
                     </p>
                   </div>
                 </div>
