@@ -19,16 +19,10 @@ export class ContainerDatabase extends Dexie {
 export const db = new ContainerDatabase();
 
 /**
- * Initializes the database and seeds it with default data if empty.
+ * Initializes the database.
  */
 export async function initDatabase(): Promise<void> {
-  const count = await db.containers.count();
-  if (count === 0) {
-    console.log('Seeding initial container plans...');
-    for (const container of INITIAL_SEED_CONTAINERS) {
-      await addContainerWithVehicles(container);
-    }
-  }
+  await db.open();
 }
 
 /**
@@ -152,88 +146,78 @@ export async function bulkSaveContainers(containersList: Container[]): Promise<v
   if (!containersList || containersList.length === 0) return;
 
   try {
-    await db.transaction('rw', db.containers, db.vehicles, async () => {
-      const existing = await db.containers.toArray();
-      const existingMap = new Map(existing.map((c) => [c.containerNo.trim().toUpperCase(), c]));
+    const existing = await db.containers.toArray().catch(() => []);
+    const existingMap = new Map(existing.map((c) => [c.containerNo.trim().toUpperCase(), c.id]));
 
-      const containersToPut: Container[] = [];
-      const vehiclesToDeleteByContainerId: number[] = [];
-      const allVehiclesToPut: Vehicle[] = [];
+    // Batch process in chunks of 40 to avoid freezing the browser or exhausting IDB transactions
+    const chunkSize = 40;
+    for (let i = 0; i < containersList.length; i += chunkSize) {
+      const chunk = containersList.slice(i, i + chunkSize);
+      await db.transaction('rw', db.containers, db.vehicles, async () => {
+        for (const c of chunk) {
+          const cleanNo = c.containerNo.trim().toUpperCase();
+          const existingId = existingMap.get(cleanNo) || c.id;
 
-      for (const container of containersList) {
-        const cleanNo = container.containerNo.trim().toUpperCase();
-        const existingContainer = existingMap.get(cleanNo);
-        const targetId = existingContainer?.id || container.id;
+          const modelsSet = new Set<string>();
+          const prefixesSet = new Set<string>();
+          let totalCbm = 0;
+          let totalWeight = 0;
+          let totalPrice = 0;
 
-        const modelsSet = new Set<string>();
-        const prefixesSet = new Set<string>();
-        let totalCbm = 0;
-        let totalWeight = 0;
-        let totalPrice = 0;
-
-        const vehicles = container.vehicles || [];
-        vehicles.forEach((v, idx) => {
-          v.serialNo = idx + 1;
-          v.chassisPrefix = v.chassisPrefix || extractChassisPrefix(v.chassisNo);
-          const calcCbm = calculateCbm(v.length, v.width, v.height);
-          v.calculatedCbm = calcCbm;
-          v.cbmMismatch = hasCbmMismatch(v.cbm, calcCbm);
-          totalCbm += v.cbm || 0;
-          totalWeight += v.weight || 0;
-          totalPrice += v.price || 0;
-          if (v.model) modelsSet.add(v.model.toUpperCase().trim());
-          if (v.chassisPrefix) prefixesSet.add(v.chassisPrefix.toUpperCase().trim());
-        });
-
-        const containerMeta: Container = {
-          ...container,
-          containerNo: cleanNo,
-          totalCbm: Math.round(totalCbm * 1000) / 1000,
-          totalWeight,
-          totalPrice,
-          vehicleCount: vehicles.length,
-          models: Array.from(modelsSet),
-          chassisPrefixes: Array.from(prefixesSet),
-          createdAt: container.createdAt || Date.now(),
-          updatedAt: Date.now(),
-        };
-
-        if (targetId) {
-          containerMeta.id = targetId;
-          vehiclesToDeleteByContainerId.push(targetId);
-        }
-
-        containersToPut.push(containerMeta);
-      }
-
-      // Delete existing vehicles for updated containers in bulk
-      if (vehiclesToDeleteByContainerId.length > 0) {
-        await db.vehicles.where('containerId').anyOf(vehiclesToDeleteByContainerId).delete();
-      }
-
-      // Bulk put container manifests
-      const putIds = await db.containers.bulkPut(containersToPut, { allKeys: true });
-
-      // Prepare child vehicle rows with valid containerId
-      containersToPut.forEach((c, idx) => {
-        const cid = (putIds && (putIds as any)[idx]) || c.id;
-        const vList = containersList[idx].vehicles || [];
-        vList.forEach((v, vIdx) => {
-          allVehiclesToPut.push({
-            ...v,
-            id: v.id || `v-${c.containerNo}-${vIdx}-${Math.random().toString(36).slice(2, 7)}`,
-            containerId: cid,
-            containerNo: c.containerNo,
+          const vehicles = c.vehicles || [];
+          vehicles.forEach((v, idx) => {
+            v.serialNo = idx + 1;
+            v.chassisPrefix = v.chassisPrefix || extractChassisPrefix(v.chassisNo);
+            const calcCbm = calculateCbm(v.length, v.width, v.height);
+            v.calculatedCbm = calcCbm;
+            v.cbmMismatch = hasCbmMismatch(v.cbm, calcCbm);
+            totalCbm += v.cbm || 0;
+            totalWeight += v.weight || 0;
+            totalPrice += v.price || 0;
+            if (v.model) modelsSet.add(v.model.toUpperCase().trim());
+            if (v.chassisPrefix) prefixesSet.add(v.chassisPrefix.toUpperCase().trim());
           });
-        });
-      });
 
-      if (allVehiclesToPut.length > 0) {
-        await db.vehicles.bulkPut(allVehiclesToPut);
-      }
-    });
+          const containerMeta: Container = {
+            ...c,
+            containerNo: cleanNo,
+            totalCbm: Math.round(totalCbm * 1000) / 1000,
+            totalWeight,
+            totalPrice,
+            vehicleCount: vehicles.length,
+            models: Array.from(modelsSet),
+            chassisPrefixes: Array.from(prefixesSet),
+            createdAt: c.createdAt || Date.now(),
+            updatedAt: Date.now(),
+          };
+
+          let targetId = existingId;
+          if (targetId) {
+            containerMeta.id = targetId;
+            await db.containers.put(containerMeta);
+            await db.vehicles.where('containerId').equals(targetId).delete();
+          } else {
+            delete (containerMeta as any).id;
+            targetId = await db.containers.add(containerMeta);
+            existingMap.set(cleanNo, targetId);
+          }
+
+          if (vehicles.length > 0 && targetId) {
+            const vRows = vehicles.map((v, idx) => ({
+              ...v,
+              id: v.id || `v-${cleanNo}-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              containerId: targetId,
+              containerNo: cleanNo,
+            }));
+            await db.vehicles.bulkPut(vRows);
+          }
+        }
+      });
+      // Yield to main event loop
+      await new Promise((r) => setTimeout(r, 0));
+    }
   } catch (err) {
-    console.warn('bulkSaveContainers background cache warning:', err);
+    console.warn('bulkSaveContainers cache note (non-blocking):', err);
   }
 }
 
@@ -248,6 +232,27 @@ export async function deleteContainer(containerId: number): Promise<Container | 
     await db.vehicles.where('containerId').equals(containerId).delete();
     await db.containers.delete(containerId);
     return { ...container, vehicles };
+  });
+}
+
+export async function deleteContainerByNoLocal(containerNo: string): Promise<void> {
+  const cleanNo = containerNo.trim().toUpperCase();
+  await db.transaction('rw', db.containers, db.vehicles, async () => {
+    const matches = await db.containers.where('containerNo').equalsIgnoreCase(cleanNo).toArray();
+    for (const m of matches) {
+      if (m.id) {
+        await db.vehicles.where('containerId').equals(m.id).delete();
+        await db.containers.delete(m.id);
+      }
+    }
+    await db.vehicles.where('containerNo').equalsIgnoreCase(cleanNo).delete();
+  });
+}
+
+export async function clearLocalDatabase(): Promise<void> {
+  await db.transaction('rw', db.containers, db.vehicles, async () => {
+    await db.containers.clear();
+    await db.vehicles.clear();
   });
 }
 
@@ -373,6 +378,66 @@ export async function lookupVehicleSpecs(modelQuery: string, chassisPrefixQuery?
     .sort((a, b) => b.frequency - a.frequency);
 }
 
+export function lookupVehicleSpecsFromContainers(
+  containersList: Container[],
+  modelQuery: string,
+  chassisPrefixQuery?: string
+): VehicleLookupSpec[] {
+  const cleanModel = modelQuery.trim().toUpperCase();
+  const cleanPrefix = chassisPrefixQuery?.trim().toUpperCase();
+  if (!cleanModel) return [];
+
+  const matches: Vehicle[] = [];
+  for (const c of containersList) {
+    for (const v of c.vehicles || []) {
+      const m = (v.model || '').toUpperCase();
+      const modelMatches = m === cleanModel || m.includes(cleanModel);
+      if (!modelMatches) continue;
+      if (cleanPrefix && !(v.chassisPrefix || '').toUpperCase().includes(cleanPrefix)) {
+        continue;
+      }
+      matches.push(v);
+    }
+  }
+
+  if (matches.length === 0) return [];
+
+  const groups = new Map<string, { spec: VehicleLookupSpec; count: number }>();
+  for (const v of matches) {
+    const key = `${v.make}_${v.model}_${v.chassisPrefix}_${v.length}_${v.width}_${v.height}_${v.weight}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        spec: {
+          make: v.make,
+          model: v.model,
+          chassisPrefix: v.chassisPrefix,
+          engineCC: v.engineCC || 0,
+          fuel: v.fuel || 'D',
+          length: v.length || 0,
+          width: v.width || 0,
+          height: v.height || 0,
+          weight: v.weight || 0,
+          cbm: v.cbm || calculateCbm(v.length, v.width, v.height),
+          frequency: 1,
+          lastSeenYear: v.year,
+        },
+        count: 1,
+      });
+    } else {
+      const item = groups.get(key)!;
+      item.count++;
+      item.spec.frequency = item.count;
+      if (v.year && (!item.spec.lastSeenYear || v.year > item.spec.lastSeenYear)) {
+        item.spec.lastSeenYear = v.year;
+      }
+    }
+  }
+
+  return Array.from(groups.values())
+    .map((g) => g.spec)
+    .sort((a, b) => b.frequency - a.frequency);
+}
+
 /**
  * Bulk insert containers with progress callback.
  */
@@ -407,7 +472,7 @@ export async function bulkImportContainers(
 export async function generateSyntheticContainers(
   count: number,
   onProgress?: (processed: number, total: number) => void
-): Promise<number> {
+): Promise<Container[]> {
   const makesAndModels: Array<{
     make: string;
     model: string;
@@ -505,5 +570,5 @@ export async function generateSyntheticContainers(
   }
 
   await bulkImportContainers(generated, onProgress);
-  return count;
+  return generated;
 }

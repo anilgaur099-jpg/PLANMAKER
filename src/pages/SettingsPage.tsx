@@ -1,33 +1,22 @@
 import React, { useState } from 'react';
 import {
-  Settings,
   Sliders,
   Database,
-  Languages,
-  Sun,
-  Moon,
-  Trash2,
   Download,
   Upload,
-  Layers,
   Sparkles,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
   RefreshCw,
   BookOpen,
-  Cloud,
   LogOut,
-  Server,
-  ExternalLink,
   ShieldCheck,
   KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { useApp, CONTAINER_PRESETS } from '../context/AppContext';
-import { db, generateSyntheticContainers } from '../db/db';
+import { clearLocalDatabase, generateSyntheticContainers } from '../db/db';
+import { bulkSaveContainersToApi, clearContainersFromApi } from '../api/cloudSqlClient';
 import { exportDatabaseBackup } from '../utils/excelParser';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { firebaseConfig } from '../firebase/config';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -36,11 +25,7 @@ export const SettingsPage: React.FC = () => {
     containers,
     refreshContainers,
     addToast,
-    isCloudConnected,
-    cloudSyncStatus,
     sessionUser,
-    syncToCloud,
-    syncFromCloud,
     logoutSessionUser,
     setActivePage,
   } = useApp();
@@ -74,15 +59,18 @@ export const SettingsPage: React.FC = () => {
     setGenerateProgress({ processed: 0, total: count });
 
     try {
-      await generateSyntheticContainers(count, (processed, total) => {
+      const generated = await generateSyntheticContainers(count, (processed, total) => {
+        setGenerateProgress({ processed, total });
+      });
+      await bulkSaveContainersToApi(generated, (processed, total) => {
         setGenerateProgress({ processed, total });
       });
       await refreshContainers();
 
       addToast({
         type: 'success',
-        title: 'Scale Data Generated',
-        description: `Successfully seeded ${count} realistic export containers (${count * 4} vehicles) into IndexedDB.`,
+        title: 'Sample Dataset Added',
+        description: `Successfully created ${count} realistic export containers (${count * 4} vehicles).`,
       });
     } catch (err: any) {
       console.error(err);
@@ -94,19 +82,17 @@ export const SettingsPage: React.FC = () => {
 
   const handleClearDatabase = async () => {
     try {
-      await db.transaction('rw', db.containers, db.vehicles, async () => {
-        await db.containers.clear();
-        await db.vehicles.clear();
-      });
+      await clearContainersFromApi();
+      await clearLocalDatabase().catch(() => {});
       await refreshContainers();
       addToast({
         type: 'warning',
-        title: 'Database Cleared',
-        description: 'All local container records have been deleted.',
+        title: 'Archive Cleared',
+        description: 'All container records have been removed.',
       });
     } catch (err: any) {
       console.error(err);
-      addToast({ type: 'error', title: 'Error clearing database', description: err.message });
+      addToast({ type: 'error', title: 'Error clearing archive', description: err.message });
     }
   };
 
@@ -123,19 +109,12 @@ export const SettingsPage: React.FC = () => {
           throw new Error('Invalid JSON backup file structure.');
         }
 
-        for (const c of parsed.containers) {
-          const { id, ...cleanContainer } = c;
-          await db.containers.add(cleanContainer);
-          if (c.vehicles && Array.isArray(c.vehicles)) {
-            await db.vehicles.bulkAdd(c.vehicles);
-          }
-        }
-
+        const res = await bulkSaveContainersToApi(parsed.containers);
         await refreshContainers();
         addToast({
           type: 'success',
           title: 'Backup Restored',
-          description: `Imported ${parsed.containers.length} containers from JSON backup.`,
+          description: `Imported ${res.success} containers from JSON backup.`,
         });
       } catch (err: any) {
         console.error(err);
@@ -156,7 +135,7 @@ export const SettingsPage: React.FC = () => {
           </span>
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Configure container loading constraints, appearance theme, and Firestore cloud sync
+          Configure container loading constraints, appearance theme, and archive backups
         </p>
       </div>
 
@@ -182,7 +161,7 @@ export const SettingsPage: React.FC = () => {
           }`}
         >
           <Database className="w-3.5 h-3.5" />
-          <span>Offline Database & Scale</span>
+          <span>Data Management & Backup</span>
         </button>
         <button
           onClick={() => setActiveTab('readme')}
@@ -338,15 +317,15 @@ export const SettingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: Database Management & 1000+ Scale Simulation */}
+      {/* TAB 2: Data Management & Backup */}
       {activeTab === 'database' && (
         <div className="space-y-6">
-          {/* Current Database Status */}
+          {/* Archive Summary */}
           <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center justify-between">
-              <span>IndexedDB Storage Status</span>
-              <span className="text-xs px-2 py-0.5 rounded font-mono bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold">
-                Dexie v4 • Client Offline
+              <span>Fleet Archive Summary</span>
+              <span className="text-xs px-2 py-0.5 rounded font-mono bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-semibold">
+                {containers.length} Plans
               </span>
             </h2>
 
@@ -378,90 +357,50 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Google Firebase Firestore Card */}
-          <div className="p-5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-gradient-to-br from-sky-50/50 to-white dark:from-sky-950/20 dark:to-slate-900 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-sky-100 dark:border-sky-900/40">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
-                  <Cloud className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span>Google Firebase Cloud Storage</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300">
-                      firebase.google.com
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Cloud database persistence for multi-device sync, permanent backup, and team access.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-mono bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>ALWAYS CONNECTED (24/7)</span>
-                </span>
-              </div>
-            </div>
-
-            {/* 24/7 Cloud Security & Persistence Banner */}
-            <div className="p-3.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
-              <div className="font-bold flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Automatic 24/7 Cloud Database Connection & Sync</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
-                All vehicle specifications, container manifests, and yard preparation remarks are continuously synchronized in the background. Manual sync options have been removed to prevent team members from disturbing database synchronization.
+          {/* Portal User Session & Access Control Section */}
+          <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Portal Account & Team Access Control</span>
+              </span>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {sessionUser
+                  ? `Active Session: ${sessionUser.displayName || sessionUser.username} • Role: ${sessionUser.role.toUpperCase()}`
+                  : 'Administrator Session (Master Control)'}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Team credentials and access permissions are managed by Anil Gaur.
               </p>
             </div>
 
-            {/* Portal User Session & Access Control Section (Google login disabled) */}
-            <div className="p-4 rounded-lg bg-white/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div className="space-y-0.5">
-                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Portal Account & Access Control (Admin Managed)</span>
-                </span>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  {sessionUser
-                    ? `Active Session: ${sessionUser.displayName || sessionUser.username} • Role: ${sessionUser.role.toUpperCase()}`
-                    : 'Administrator Session (Master Control)'}
-                </p>
-                <p className="text-[10px] text-slate-500">
-                  Team members log in directly using User & Password assigned by Anil Gaur.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setActivePage('admin')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
-                >
-                  <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Manage Users</span>
-                </button>
-                <button
-                  onClick={() => logoutSessionUser()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Log Out</span>
-                </button>
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setActivePage('admin')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                <span>Manage Users</span>
+              </button>
+              <button
+                onClick={() => logoutSessionUser()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Log Out</span>
+              </button>
             </div>
           </div>
 
-          {/* Scale Test Generators (Simulate 1000+ Plans) */}
+          {/* Scale Test Generators */}
           <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <div>
               <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-sky-500" />
-                <span>Simulate 1000+ Container Scale</span>
+                <span>Sample Scale Test Generator</span>
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Instantly populate your IndexedDB with realistic Japanese used vehicle container plans (ELF, CANTER, HIACE, WISH, RUMION, DYNA, DUTRO, etc.) to verify search performance, indexing, and charts at high volume.
+                Populate sample Japanese used vehicle container plans (ELF, CANTER, HIACE, WISH, RUMION, DYNA, DUTRO) to test search performance and charts at high volume.
               </p>
             </div>
 
@@ -469,7 +408,7 @@ export const SettingsPage: React.FC = () => {
               <div className="p-4 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-center space-y-2">
                 <div className="text-xs font-bold text-sky-800 dark:text-sky-200 flex items-center justify-center gap-2">
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Writing to IndexedDB: {generateProgress.processed} / {generateProgress.total} Containers...</span>
+                  <span>Saving Sample Plans: {generateProgress.processed} / {generateProgress.total} Containers...</span>
                 </div>
                 <div className="w-full max-w-sm mx-auto h-2 bg-sky-200 dark:bg-sky-900 rounded-full overflow-hidden">
                   <div
@@ -509,20 +448,30 @@ export const SettingsPage: React.FC = () => {
             <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100">
               Full Archive Backup & Restore
             </h2>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => exportDatabaseBackup(containers)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs"
-              >
-                <Download className="w-3.5 h-3.5 text-sky-500" />
-                <span>Download Full JSON Backup</span>
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => exportDatabaseBackup(containers)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-sky-500" />
+                  <span>Download Full JSON Backup</span>
+                </button>
 
-              <label className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs">
-                <Upload className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Restore from JSON File</span>
-                <input type="file" accept=".json" onChange={handleRestoreJsonBackup} className="hidden" />
-              </label>
+                <label className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs">
+                  <Upload className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Restore from JSON File</span>
+                  <input type="file" accept=".json" onChange={handleRestoreJsonBackup} className="hidden" />
+                </label>
+              </div>
+
+              <button
+                onClick={() => setShowClearModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/60 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear All Plans</span>
+              </button>
             </div>
           </div>
         </div>
@@ -576,14 +525,14 @@ export const SettingsPage: React.FC = () => {
 
           <div className="space-y-3">
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              3. Strict Historical Plan Verification (Zero AI / Zero Predictions)
+              3. Strict Historical Plan Verification
             </h3>
             <p className="font-medium text-emerald-700 dark:text-emerald-400">
-              ✓ Only uploaded historical plans are matched and verified. Zero synthetic AI predictions:
+              ✓ Only uploaded historical plans are matched and verified:
             </p>
             <ol className="list-decimal pl-5 space-y-1.5 text-[11px]">
               <li>
-                <strong>Level 1 (Exact Model + Chassis Prefix Match):</strong> Checks your uploaded database for exact chassis code matches (e.g., ELF [NKR61E] + RUMION [ZRE152] + ELF [NPR58P] + HIACE [KDH206]).
+                <strong>Level 1 (Exact Model + Chassis Prefix Match):</strong> Checks your uploaded plans for exact chassis code matches (e.g., ELF [NKR61E] + RUMION [ZRE152] + ELF [NPR58P] + HIACE [KDH206]).
               </li>
               <li>
                 <strong>Level 2 (Exact Historical Model Combination Match):</strong> Checks uploaded plans for proven 4-vehicle multiset combinations.
@@ -595,6 +544,16 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showClearModal}
+        onCancel={() => setShowClearModal(false)}
+        onConfirm={handleClearDatabase}
+        title="Clear All Container Plans?"
+        message="This will permanently delete all container plans and vehicle records from the shared archive. Download a JSON backup first if you need a copy."
+        confirmLabel="Delete All Plans"
+        isDestructive={true}
+      />
     </div>
   );
 };

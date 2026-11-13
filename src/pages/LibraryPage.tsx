@@ -19,11 +19,12 @@ import {
   Layers,
   ArrowUpDown,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { Container, Vehicle } from '../types';
 import { useApp } from '../context/AppContext';
-import { deleteContainer, addContainerWithVehicles } from '../db/db';
-import { saveContainerToFirestore, deleteContainerFromFirestore } from '../firebase/firestoreService';
+import { deleteContainerByNoLocal, upsertContainerByNo } from '../db/db';
+import { saveContainerToApi, deleteContainerFromApi } from '../api/cloudSqlClient';
 import { exportContainersToExcel } from '../utils/excelParser';
 import { formatContainerForWhatsApp, copyToClipboard } from '../utils/whatsappFormatter';
 
@@ -40,6 +41,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 }) => {
   const {
     containers,
+    isLoadingContainers,
     refreshContainers,
     addToast,
     settings,
@@ -54,7 +56,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedFuel, setSelectedFuel] = useState('');
   const [cbmRange, setCbmRange] = useState<'all' | 'under60' | '60to75' | 'over75'>('all');
-  const [expandedContainerIds, setExpandedContainerIds] = useState<Set<number>>(new Set());
+  const [expandedContainerIds, setExpandedContainerIds] = useState<Set<number | string>>(new Set());
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   // Sorting
@@ -68,33 +70,34 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   // Distinct values for filter dropdowns
   const availableMakes = useMemo(() => {
     const s = new Set<string>();
-    containers.forEach((c) => c.vehicles.forEach((v) => v.make && s.add(v.make.toUpperCase())));
+    containers.forEach((c) => (c.vehicles || []).forEach((v) => v.make && s.add(v.make.toUpperCase())));
     return Array.from(s).sort();
   }, [containers]);
 
   const availableModels = useMemo(() => {
     const s = new Set<string>();
-    containers.forEach((c) => c.vehicles.forEach((v) => v.model && s.add(v.model.toUpperCase())));
+    containers.forEach((c) => (c.vehicles || []).forEach((v) => v.model && s.add(v.model.toUpperCase())));
     return Array.from(s).sort();
   }, [containers]);
 
   // Filtered & Sorted containers
   const filteredContainers = useMemo(() => {
     return containers.filter((c) => {
+      const vList = c.vehicles || [];
       // Text search
       if (searchQuery.trim()) {
         const q = searchQuery.toUpperCase().trim();
         const cNoMatch = c.containerNo.toUpperCase().includes(q);
         const sealMatch = c.sealOrBlNo?.toUpperCase().includes(q);
         const modelMatch = c.models?.some((m) => m.toUpperCase().includes(q));
-        const chassisMatch = c.vehicles.some(
+        const chassisMatch = vList.some(
           (v) => v.chassisNo?.toUpperCase().includes(q) || v.chassisPrefix?.toUpperCase().includes(q)
         );
         if (!cNoMatch && !sealMatch && !modelMatch && !chassisMatch) return false;
       }
 
       // Make filter
-      if (selectedMake && !c.vehicles.some((v) => v.make?.toUpperCase() === selectedMake)) {
+      if (selectedMake && !vList.some((v) => v.make?.toUpperCase() === selectedMake)) {
         return false;
       }
 
@@ -104,7 +107,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       }
 
       // Fuel filter
-      if (selectedFuel && !c.vehicles.some((v) => v.fuel?.toUpperCase() === selectedFuel)) {
+      if (selectedFuel && !vList.some((v) => v.fuel?.toUpperCase() === selectedFuel)) {
         return false;
       }
 
@@ -127,7 +130,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   const totalPages = Math.ceil(filteredContainers.length / pageSize) || 1;
   const paginatedContainers = filteredContainers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const toggleExpand = (id: number) => {
+  const toggleExpand = (id: number | string) => {
     setExpandedContainerIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -137,7 +140,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   };
 
   const expandAll = () => {
-    setExpandedContainerIds(new Set(paginatedContainers.map((c) => c.id!).filter(Boolean)));
+    setExpandedContainerIds(new Set(paginatedContainers.map((c) => c.id || c.containerNo).filter(Boolean)));
   };
 
   const collapseAll = () => {
@@ -145,28 +148,35 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   };
 
   const handleDeleteContainer = async (c: Container) => {
-    if (!c.id) return;
     const backupContainer = { ...c };
-    await deleteContainer(c.id);
-    deleteContainerFromFirestore(c.containerNo).catch((e) => console.warn('Firestore sync note:', e));
-    await refreshContainers();
+    try {
+      await deleteContainerFromApi(c.containerNo);
+      await deleteContainerByNoLocal(c.containerNo).catch(() => {});
+      await refreshContainers();
 
-    addToast({
-      type: 'info',
-      title: 'Container Deleted',
-      description: `Container ${c.containerNo} has been removed.`,
-      undoLabel: 'Undo Delete',
-      undoAction: async () => {
-        await addContainerWithVehicles(backupContainer);
-        saveContainerToFirestore(backupContainer).catch((e) => console.warn('Firestore sync note:', e));
-        await refreshContainers();
-        addToast({
-          type: 'success',
-          title: 'Container Restored',
-          description: `Container ${backupContainer.containerNo} restored.`,
-        });
-      },
-    });
+      addToast({
+        type: 'info',
+        title: 'Container Deleted',
+        description: `Container ${c.containerNo} has been removed.`,
+        undoLabel: 'Undo Delete',
+        undoAction: async () => {
+          await saveContainerToApi(backupContainer);
+          await upsertContainerByNo(backupContainer).catch(() => {});
+          await refreshContainers();
+          addToast({
+            type: 'success',
+            title: 'Container Restored',
+            description: `Container ${backupContainer.containerNo} restored.`,
+          });
+        },
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        description: err.message || 'Could not remove container plan.',
+      });
+    }
   };
 
   const handleDuplicateContainer = async (c: Container) => {
@@ -182,14 +192,22 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         containerNo: `${c.containerNo}-COPY`,
       })),
     };
-    await addContainerWithVehicles(dup);
-    saveContainerToFirestore(dup).catch((e) => console.warn('Firestore sync note:', e));
-    await refreshContainers();
-    addToast({
-      type: 'success',
-      title: 'Container Duplicated',
-      description: `Created copy: ${dup.containerNo}`,
-    });
+    try {
+      await saveContainerToApi(dup);
+      await upsertContainerByNo(dup).catch(() => {});
+      await refreshContainers();
+      addToast({
+        type: 'success',
+        title: 'Container Duplicated',
+        description: `Created copy: ${dup.containerNo}`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Duplicate Failed',
+        description: err.message || 'Could not duplicate container plan.',
+      });
+    }
   };
 
   const handleExportAllToExcel = () => {
@@ -387,8 +405,18 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         </div>
       </div>
 
-      {/* Containers List / Empty State */}
-      {filteredContainers.length === 0 ? (
+      {/* Containers List / Loading / Empty State */}
+      {isLoadingContainers ? (
+        <div className="p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+          <RefreshCw className="w-8 h-8 animate-spin text-sky-600 dark:text-sky-400 mx-auto" />
+          <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+            Loading Container Plans...
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Retrieving shipping manifests and vehicle specifications.
+          </p>
+        </div>
+      ) : filteredContainers.length === 0 ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
           <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
             <Layers className="w-6 h-6" />
@@ -421,11 +449,13 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       ) : (
         <div className="space-y-4">
           {paginatedContainers.map((container) => {
-            const isExpanded = container.id ? expandedContainerIds.has(container.id) : false;
+            const cardKey = container.id || container.containerNo;
+            const isExpanded = expandedContainerIds.has(cardKey);
             const cbmFill = Math.min(Math.round((container.totalCbm / 76) * 100), 120);
+            const vList = container.vehicles || [];
 
             // Group vehicles by model with exact counts (e.g. 2x HIACE, 1x CANTER, 1x WISH)
-            const modelCounts = container.vehicles.reduce((acc, v) => {
+            const modelCounts = vList.reduce((acc, v) => {
               const name = (v.model || 'UNKNOWN').trim().toUpperCase();
               acc[name] = (acc[name] || 0) + 1;
               return acc;
@@ -433,12 +463,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
             return (
               <div
-                key={container.id || container.containerNo}
+                key={cardKey}
                 className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden transition-all"
               >
                 {/* Container Summary Card Header */}
                 <div
-                  onClick={() => container.id && toggleExpand(container.id)}
+                  onClick={() => toggleExpand(cardKey)}
                   className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/40 select-none"
                 >
                   <div className="flex items-center gap-3 min-w-0">

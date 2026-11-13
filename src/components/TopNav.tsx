@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Plus, Upload, ShieldCheck, Cloud, RefreshCw, User, LogIn, LogOut } from 'lucide-react';
+import { Menu, Plus, Upload, ShieldCheck, User, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface TopNavProps {
@@ -17,7 +17,6 @@ export const TopNav: React.FC<TopNavProps> = ({
     activePage,
     setActivePage,
     containers,
-    currentUser,
     sessionUser,
     logoutSessionUser,
     adminUnlockedWithPin,
@@ -91,7 +90,6 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Zone 3: Actions & User Session */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* User Auth Info / Session Status */}
         {sessionUser || adminUnlockedWithPin ? (
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">
             <User className="w-3.5 h-3.5 text-sky-500 shrink-0" />

@@ -14,7 +14,6 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { Container } from './types';
 import { UserX, ShieldAlert, LogOut } from 'lucide-react';
-import { LoginScreen } from './components/LoginScreen';
 
 const AppContent: React.FC = () => {
   const {
@@ -77,21 +76,9 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Enforce Web Login Gateway: User logs in directly with username/password or master PIN
-  const isAuthenticated = Boolean(
-    sessionUser ||
-    adminUnlockedWithPin ||
-    accessConfig.requireWebLogin === false
-  );
-
-  if (!isAuthenticated) {
-    return (
-      <>
-        <LoginScreen />
-        <ToastContainer />
-      </>
-    );
-  }
+  // Open Direct Access: Any browser or device immediately views all container manifests,
+  // analytics, search, and builder without requiring email login.
+  // Administrative functions remain protected by Master PIN on the Admin page.
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">

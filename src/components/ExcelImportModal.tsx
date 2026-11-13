@@ -25,8 +25,8 @@ import {
   downloadBlankExcelTemplate,
   ColumnMapping,
 } from '../utils/excelParser';
-import { bulkImportContainers, db } from '../db/db';
-import { syncContainersToFirestore } from '../firebase/firestoreService';
+import { bulkImportContainers, deleteContainerByNoLocal } from '../db/db';
+import { bulkSaveContainersToApi } from '../api/cloudSqlClient';
 import { useApp } from '../context/AppContext';
 
 interface ExcelImportModalProps {
@@ -134,11 +134,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           if (duplicateMode === 'skip') {
             continue; // Skip
           } else if (duplicateMode === 'overwrite') {
-            // Delete old one before inserting
-            await db.transaction('rw', db.containers, db.vehicles, async () => {
-              await db.vehicles.where('containerId').equals(existingId).delete();
-              await db.containers.delete(existingId);
-            });
+            await deleteContainerByNoLocal(cKey).catch(() => {});
             finalToImport.push(candidate);
           } else {
             // Keep both: rename duplicate
@@ -152,22 +148,23 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
       setImportProgress({ processed: 0, total: finalToImport.length });
 
-      await bulkImportContainers(finalToImport, (processed, total) => {
+      const apiRes = await bulkSaveContainersToApi(finalToImport, (processed, total) => {
         setImportProgress({ processed, total });
       });
 
-      // Synchronously write to Firebase Firestore so all records are committed 24/7 before closing
-      await syncContainersToFirestore(finalToImport, (processed, total) => {
-        setImportProgress({ processed, total });
-      });
+      if (apiRes.failed > 0 && apiRes.success === 0) {
+        throw new Error('Could not save imported container plans to the server.');
+      }
+
+      await bulkImportContainers(finalToImport).catch(() => {});
 
       addToast({
         type: 'success',
-        title: 'Import & Cloud Sync Complete',
+        title: 'Import Complete',
         description: `Imported ${finalToImport.length} containers (${finalToImport.reduce(
           (acc, c) => acc + c.vehicles.length,
           0
-        )} vehicles) into database & synchronized 24/7 with Cloud Firestore.`,
+        )} vehicles) and shared across all devices.`,
       });
 
       onImportComplete();
@@ -177,7 +174,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       addToast({
         type: 'error',
         title: 'Import Failed',
-        description: err.message || 'An error occurred during database write.',
+        description: err.message || 'An error occurred while saving imported plans.',
       });
       setStep('preview');
     }
@@ -641,7 +638,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </div>
               {parsedContainers.length > 15 && (
                 <div className="text-center text-[11px] text-slate-500">
-                  Showing first 15 of {parsedContainers.length} containers. All will be imported into IndexedDB.
+                  Showing first 15 of {parsedContainers.length} containers. All will be imported into your plan library.
                 </div>
               )}
             </div>
@@ -653,7 +650,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <RefreshCw className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                Writing Containers to Local Database...
+                Saving Imported Container Plans...
               </h3>
               <p className="text-xs text-slate-500">
                 Processed {importProgress.processed} of {importProgress.total} container records

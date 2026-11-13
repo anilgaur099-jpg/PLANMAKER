@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Container, Vehicle } from '../types';
 import { useApp } from '../context/AppContext';
-import { getDistinctModels, getDistinctChassisPrefixes, getDistinctMakes } from '../db/db';
 import { exportContainersToExcel } from '../utils/excelParser';
 import { formatContainerForWhatsApp, copyToClipboard } from '../utils/whatsappFormatter';
 
@@ -43,23 +42,38 @@ export const SearchPage: React.FC = () => {
   // View toggle: 'vehicle' | 'container'
   const [viewMode, setViewMode] = useState<'vehicle' | 'container'>('vehicle');
 
-  // Autocomplete lists
-  const [knownModels, setKnownModels] = useState<string[]>([]);
-  const [knownPrefixes, setKnownPrefixes] = useState<string[]>([]);
-  const [knownMakes, setKnownMakes] = useState<string[]>([]);
-
-  useEffect(() => {
-    getDistinctModels().then(setKnownModels);
-    getDistinctChassisPrefixes().then(setKnownPrefixes);
-    getDistinctMakes().then(setKnownMakes);
+  // Autocomplete lists derived directly from active containers
+  const knownModels = useMemo(() => {
+    const set = new Set<string>();
+    containers.forEach((c) =>
+      (c.vehicles || []).forEach((v) => {
+        if (v.model) set.add(v.model.toUpperCase().trim());
+      })
+    );
+    return Array.from(set).sort();
   }, [containers]);
 
-  // Update chassis prefix autocomplete when model changes
-  useEffect(() => {
-    getDistinctChassisPrefixes(modelInput ? modelInput.split(',')[0].trim() : undefined).then(
-      setKnownPrefixes
+  const knownMakes = useMemo(() => {
+    const set = new Set<string>();
+    containers.forEach((c) =>
+      (c.vehicles || []).forEach((v) => {
+        if (v.make) set.add(v.make.toUpperCase().trim());
+      })
     );
-  }, [modelInput]);
+    return Array.from(set).sort();
+  }, [containers]);
+
+  const knownPrefixes = useMemo(() => {
+    const filterModel = modelInput ? modelInput.split(',')[0].trim().toUpperCase() : '';
+    const set = new Set<string>();
+    containers.forEach((c) =>
+      (c.vehicles || []).forEach((v) => {
+        if (filterModel && (v.model || '').toUpperCase().trim() !== filterModel) return;
+        if (v.chassisPrefix) set.add(v.chassisPrefix.toUpperCase().trim());
+      })
+    );
+    return Array.from(set).sort();
+  }, [containers, modelInput]);
 
   // Matching Logic
   const { matchingVehicles, matchingContainers } = useMemo(() => {
@@ -219,7 +233,7 @@ export const SearchPage: React.FC = () => {
         });
       },
       'Authorization Password Required for Excel Download',
-      'Search results download karne ke liye password dalein.'
+      'Enter authorization password to download matching search results.'
     );
   };
 

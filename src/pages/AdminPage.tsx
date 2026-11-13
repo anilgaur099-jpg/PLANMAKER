@@ -14,13 +14,9 @@ import {
   EyeOff,
   ShieldAlert,
   Sparkles,
-  ExternalLink,
-  Cloud,
-  Database,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AppUserAccess } from '../types';
-import { firebaseConfig } from '../firebase/config';
 
 export const AdminPage: React.FC = () => {
   const {
@@ -172,7 +168,7 @@ export const AdminPage: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Master Password Changed',
-        description: 'New Master Password has been securely saved to database.',
+        description: 'New Master Password has been securely saved.',
       });
     } catch (err: any) {
       setMasterError(err.message || 'Failed to update master password');
@@ -322,27 +318,6 @@ export const AdminPage: React.FC = () => {
                   Require Username & Password to Open Web App
                 </span>
               </label>
-            </div>
-          </div>
-
-          {/* 24/7 Active Protected Cloud Database Card */}
-          <div className="p-4 rounded-xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20 flex items-start gap-3 text-xs">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-emerald-900 dark:text-emerald-300 text-xs">
-                  24/7 Persistent Cloud Database Active & Fully Protected
-                </h4>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>ONLINE 24/7</span>
-                </span>
-              </div>
-              <p className="text-emerald-800 dark:text-emerald-400 leading-relaxed text-[11px]">
-                Your vehicle export plans, container records, pricing, and chassis data are continuously synchronized to enterprise cloud storage with permanent 24/7 persistence. The database remains always connected and can never be disabled or disconnected.
-              </p>
             </div>
           </div>
 

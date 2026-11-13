@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 import { Container, PlannedContainer, PlanBuilderRequestItem, Vehicle, VehicleLookupSpec } from '../types';
 import { useApp } from '../context/AppContext';
-import { lookupVehicleSpecs, getDistinctModels, addContainerWithVehicles } from '../db/db';
-import { saveContainerToFirestore } from '../firebase/firestoreService';
+import { lookupVehicleSpecsFromContainers, bulkSaveContainers } from '../db/db';
+import { bulkSaveContainersToApi } from '../api/cloudSqlClient';
 import { buildContainerPlansStrict, recalculateContainerStats } from '../utils/planner';
 import { calculateCbm, extractChassisPrefix } from '../utils/chassisParser';
 import { exportContainersToExcel } from '../utils/excelParser';
@@ -68,9 +68,15 @@ export const BuilderPage: React.FC = () => {
   const [unmatchedVehicles, setUnmatchedVehicles] = useState<Vehicle[]>([]);
   const [isPlanning, setIsPlanning] = useState(false);
 
-  // Load distinct models on mount
+  // Load distinct models directly from loaded plans
   useEffect(() => {
-    getDistinctModels().then(setKnownModels);
+    const set = new Set<string>();
+    pastContainers.forEach((c) =>
+      (c.vehicles || []).forEach((v) => {
+        if (v.model) set.add(v.model.toUpperCase().trim());
+      })
+    );
+    setKnownModels(Array.from(set).sort());
   }, [pastContainers]);
 
   // Check if draft vehicles were transferred from Library or Search
@@ -102,7 +108,7 @@ export const BuilderPage: React.FC = () => {
           let specs = newCache[cacheKey];
 
           if (!specs) {
-            specs = await lookupVehicleSpecs(row.model, row.chassisPrefix);
+            specs = lookupVehicleSpecsFromContainers(pastContainers, row.model, row.chassisPrefix);
             newCache[cacheKey] = specs;
           }
 
@@ -152,7 +158,7 @@ export const BuilderPage: React.FC = () => {
     return () => {
       isCancelled = true;
     };
-  }, [requestRows.map((r) => `${r.model}_${r.chassisPrefix}`).join(';')]);
+  }, [pastContainers, requestRows.map((r) => `${r.model}_${r.chassisPrefix}`).join(';')]);
 
   const handleRowChange = (index: number, field: keyof PlanBuilderRequestItem, value: any) => {
     const updated = [...requestRows];
@@ -368,40 +374,36 @@ export const BuilderPage: React.FC = () => {
     });
   };
 
-  // Save confirmed plans to Dexie Library
+  // Save confirmed plans to Library
   const handleSaveToLibrary = async () => {
     if (plannedContainers.length === 0) return;
 
     try {
-      for (const planned of plannedContainers) {
-        const realContainer: Container = {
-          containerNo: planned.containerNo || `CONFIRMED-${Date.now().toString().slice(-4)}`,
-          sealOrBlNo: planned.sealOrBlNo || '',
-          extraValue: planned.extraValue || 4000,
-          vehicles: planned.vehicles,
-          totalCbm: planned.totalCbm,
-          totalWeight: planned.totalWeight,
-          totalPrice: planned.totalPrice,
-          vehicleCount: planned.vehicles.length,
-          models: Array.from(new Set(planned.vehicles.map((v) => v.model))),
-          chassisPrefixes: Array.from(new Set(planned.vehicles.map((v) => v.chassisPrefix))),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          matchedFromContainerNo: planned.matchedPatternFrom,
-          remark: planned.remark || (planned.matchedPatternFrom ? `Checked from ${planned.matchedPatternFrom}` : ''),
-        };
+      const realContainers: Container[] = plannedContainers.map((planned) => ({
+        containerNo: planned.containerNo || `CONFIRMED-${Date.now().toString().slice(-4)}`,
+        sealOrBlNo: planned.sealOrBlNo || '',
+        extraValue: planned.extraValue || 4000,
+        vehicles: planned.vehicles,
+        totalCbm: planned.totalCbm,
+        totalWeight: planned.totalWeight,
+        totalPrice: planned.totalPrice,
+        vehicleCount: planned.vehicles.length,
+        models: Array.from(new Set(planned.vehicles.map((v) => v.model))),
+        chassisPrefixes: Array.from(new Set(planned.vehicles.map((v) => v.chassisPrefix))),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        matchedFromContainerNo: planned.matchedPatternFrom,
+        remark: planned.remark || (planned.matchedPatternFrom ? `Checked from ${planned.matchedPatternFrom}` : ''),
+      }));
 
-        await addContainerWithVehicles(realContainer);
-        saveContainerToFirestore(realContainer).catch((e) =>
-          console.warn('Firestore sync note:', e)
-        );
-      }
+      await bulkSaveContainersToApi(realContainers);
+      bulkSaveContainers(realContainers).catch(() => {});
 
       await refreshContainers();
       addToast({
         type: 'success',
         title: 'Plans Confirmed & Saved',
-        description: `Saved ${plannedContainers.length} verified plans to library with remarks.`,
+        description: `Saved ${plannedContainers.length} verified plans to library.`,
       });
     } catch (err: any) {
       console.error(err);
@@ -436,7 +438,7 @@ export const BuilderPage: React.FC = () => {
         });
       },
       'Authorization Required for Excel Download',
-      'Plan ki Excel download karne ke liye authorization password dalein.'
+      'Enter authorization password to export container plans to Excel.'
     );
   };
 

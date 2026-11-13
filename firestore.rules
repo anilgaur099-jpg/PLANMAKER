@@ -47,19 +47,9 @@ service cloud.firestore {
              data.vehicleCount <= 200;
     }
 
-    // Containers Collection
+    // Containers Collection - 24/7 Accessible for all team devices
     match /containers/{containerId} {
-      // Allow read for everyone (so team members can view plans)
-      allow read: if true;
-
-      // Allow create with valid ID and strict container validation
-      allow create: if isValidId(containerId) && isValidContainer(incoming());
-
-      // Allow update with strict container validation
-      allow update: if isValidId(containerId) && isValidContainer(incoming());
-
-      // Allow delete
-      allow delete: if isValidId(containerId);
+      allow read, write: if true;
     }
 
     // Health check test doc for connection testing

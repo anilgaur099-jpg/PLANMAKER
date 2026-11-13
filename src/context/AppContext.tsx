@@ -1,24 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppSettings, Container, ContainerPreset, PlannedContainer, AppUserAccess, AccessControlConfig } from '../types';
-import { initDatabase, db, getAllContainersWithVehicles, addContainerWithVehicles, upsertContainerByNo, bulkSaveContainers } from '../db/db';
-
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, testConnection, loginWithGoogle, logoutUser } from '../firebase/config';
 import {
-  saveContainerToFirestore,
-  deleteContainerFromFirestore,
-  getContainersFromFirestore,
-  syncContainersToFirestore,
-  subscribeToContainers,
-} from '../firebase/firestoreService';
+  AppSettings,
+  Container,
+  ContainerPreset,
+  PlannedContainer,
+  AppUserAccess,
+  AccessControlConfig,
+} from '../types';
+import { initDatabase, getAllContainersWithVehicles, bulkSaveContainers } from '../db/db';
+import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { auth, googleAuthProvider } from '../lib/firebase';
 import {
-  fetchAccessConfig,
-  saveAccessConfig,
-  fetchUsersList,
-  saveUserRecord,
-  removeUserRecord,
-} from '../firebase/adminService';
-import { PasswordModal, DEFAULT_MASTER_PASSWORD } from '../components/PasswordModal';
+  fetchContainersFromApi,
+  bulkSaveContainersToApi,
+  fetchAccessConfigFromApi,
+  saveAccessConfigToApi,
+  fetchPortalUsersFromApi,
+  savePortalUserToApi,
+  deletePortalUserFromApi,
+  syncAuthUserToApi,
+} from '../api/cloudSqlClient';
+import { PasswordModal } from '../components/PasswordModal';
 
 export const CONTAINER_PRESETS: ContainerPreset[] = [
   {
@@ -75,17 +77,16 @@ interface AppContextType {
   refreshContainers: () => Promise<void>;
   // Cross-page transfers
   builderDraftVehicles: Array<{ model: string; chassisPrefix?: string; qty: number }>;
-  setBuilderDraftVehicles: React.Dispatch<React.SetStateAction<Array<{ model: string; chassisPrefix?: string; qty: number }>>>;
+  setBuilderDraftVehicles: React.Dispatch<
+    React.SetStateAction<Array<{ model: string; chassisPrefix?: string; qty: number }>>
+  >;
   transferContainerToBuilder: (container: Container | PlannedContainer) => void;
   // Printing / Modal
   printContainerData: Container | PlannedContainer | null;
   setPrintContainerData: (c: Container | PlannedContainer | null) => void;
-  // Firebase Cloud Persistence & Auth
-  isCloudConnected: boolean;
-  cloudSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  // Firebase Auth
   currentUser: User | null;
-  syncToCloud: () => Promise<{ success: number; failed: number }>;
-  syncFromCloud: () => Promise<number>;
+  idToken: string | null;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   // Admin & User Access Control (Made by Anil Gaur)
@@ -113,10 +114,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SETTINGS_STORAGE_KEY = 'cpm_app_settings_v1';
+const SESSION_USER_KEY = 'cpm_session_user_v1';
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'en',
-  theme: 'dark', // Modern dark mode default for enterprise logistics
+  theme: 'dark',
   activePresetId: '40hc',
   maxVehicles: 4,
   maxCbm: 76.0,
@@ -125,13 +127,30 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoSaveNewModels: true,
 };
 
+const DEFAULT_ADMIN_USER: AppUserAccess = {
+  id: 'admin-anil',
+  email: 'admin@cpm.internal',
+  username: 'anil',
+  password: '',
+  displayName: 'Anil Gaur',
+  role: 'admin',
+  status: 'active',
+  createdAt: Date.now() - 30 * 86400000,
+  lastActive: Date.now(),
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activePage, setActivePage] = useState<AppPage>('dashboard');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [containers, setContainers] = useState<Container[]>([]);
   const [isLoadingContainers, setIsLoadingContainers] = useState(true);
-  const [builderDraftVehicles, setBuilderDraftVehicles] = useState<Array<{ model: string; chassisPrefix?: string; qty: number }>>([]);
+  const [builderDraftVehicles, setBuilderDraftVehicles] = useState<
+    Array<{ model: string; chassisPrefix?: string; qty: number }>
+  >([]);
   const [printContainerData, setPrintContainerData] = useState<Container | PlannedContainer | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
@@ -150,7 +169,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return DEFAULT_SETTINGS;
   });
 
-  // Apply theme class to <html>
   useEffect(() => {
     const root = document.documentElement;
     if (settings.theme === 'dark') {
@@ -160,7 +178,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [settings.theme]);
 
-  // Save settings
   const updateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
@@ -191,195 +208,155 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshContainers = async () => {
     try {
       setIsLoadingContainers(true);
-      const cloudContainers = await getContainersFromFirestore().catch(() => []);
-      if (cloudContainers && cloudContainers.length > 0) {
-        setContainers(cloudContainers);
-        setIsCloudConnected(true);
-        setCloudSyncStatus('synced');
-        bulkSaveContainers(cloudContainers).catch(() => {});
-      } else {
-        const local = await getAllContainersWithVehicles();
-        setContainers(local);
+      const serverContainers = await fetchContainersFromApi();
+      setContainers(serverContainers);
+      if (serverContainers.length > 0) {
+        setTimeout(() => {
+          bulkSaveContainers(serverContainers).catch(() => {});
+        }, 500);
       }
     } catch (err) {
-      console.error('Error refreshing containers from database', err);
+      console.error('Error refreshing containers:', err);
       addToast({
         type: 'error',
-        title: 'Database Load Error',
-        description: 'Failed to refresh records from database.',
+        title: 'Load Error',
+        description: 'Failed to refresh container plans.',
       });
     } finally {
       setIsLoadingContainers(false);
     }
   };
 
-  const [isCloudConnected, setIsCloudConnected] = useState(false);
-  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  // Initial load & real-time sync: ensures zero data loss and instant display across all shared devices
+  // Initial load: load authoritative plans from server API + silently upload any missing local-only plans
   useEffect(() => {
     let isMounted = true;
 
     const init = async () => {
       try {
-        await initDatabase();
-        // 1. Read existing local storage immediately so existing devices show cached data instantly
-        const local = await getAllContainersWithVehicles();
+        await initDatabase().catch((e) => console.warn('Local cache open note:', e));
+
+        // 1. Read any browser-cached plans with a 1.2s timeout for fast initial paint
+        const local = await Promise.race([
+          getAllContainersWithVehicles().catch(() => []),
+          new Promise<Container[]>((resolve) => setTimeout(() => resolve([]), 1200)),
+        ]);
+
         if (isMounted && local.length > 0) {
           setContainers(local);
           setIsLoadingContainers(false);
         }
 
-        // 2. Fetch all cloud containers from Firestore (master cloud source)
-        const cloudContainers = await getContainersFromFirestore();
-        if (cloudContainers && cloudContainers.length > 0) {
+        // 2. Fetch authoritative container plans from server API
+        let serverContainers: Container[] | null = null;
+        try {
+          serverContainers = await fetchContainersFromApi();
+        } catch (err) {
+          console.warn('Initial API fetch error:', err);
+        }
+
+        if (serverContainers !== null) {
+          const map = new Map<string, Container>();
+          for (const c of serverContainers) {
+            const key = c.containerNo.trim().toUpperCase();
+            if (key) map.set(key, c);
+          }
+
+          // Identify any plans present in this browser's local cache that are missing from server
+          const missingFromServer: Container[] = [];
+          for (const loc of local) {
+            const key = loc.containerNo.trim().toUpperCase();
+            if (key && !map.has(key)) {
+              map.set(key, loc);
+              missingFromServer.push(loc);
+            }
+          }
+
+          const mergedUnion = Array.from(map.values());
           if (isMounted) {
-            // Set state immediately so friend / new device sees all updated containers instantly
-            setContainers(cloudContainers);
-            setIsCloudConnected(true);
-            setCloudSyncStatus('synced');
+            setContainers(mergedUnion);
             setIsLoadingContainers(false);
           }
-          // Fast bulk cache into IndexedDB in background without blocking UI
-          bulkSaveContainers(cloudContainers).catch((e) =>
-            console.warn('Background IndexedDB cache note:', e)
-          );
-        } else if (isMounted && (!local || local.length === 0)) {
+
+          if (mergedUnion.length > 0) {
+            setTimeout(() => {
+              bulkSaveContainers(mergedUnion).catch(() => {});
+            }, 1500);
+          }
+
+          // Auto-upload any missing local plans silently so all browsers see the complete fleet
+          if (missingFromServer.length > 0) {
+            try {
+              const res = await bulkSaveContainersToApi(missingFromServer);
+              if (res.success > 0 && isMounted) {
+                const refreshed = await fetchContainersFromApi().catch(() => mergedUnion);
+                if (isMounted) {
+                  setContainers(refreshed);
+                  addToast({
+                    type: 'success',
+                    title: 'Plans Updated',
+                    description: `Uploaded ${res.success} local plans. All ${refreshed.length} plans are now shared across all browsers.`,
+                    duration: 5000,
+                  });
+                }
+              }
+            } catch (uploadErr) {
+              console.warn('Auto upload missing local plans note:', uploadErr);
+            }
+          }
+        } else if (isMounted) {
           setIsLoadingContainers(false);
         }
       } catch (err) {
-        console.error('Database initialization note:', err);
+        console.error('Initialization error:', err);
         if (isMounted) setIsLoadingContainers(false);
       }
     };
 
     init();
 
-    // Real-time Firestore subscription: updates friend's screen the second Anil Gaur updates any plan
-    const unsubscribeSnapshot = subscribeToContainers(
-      (liveCloudContainers) => {
-        if (!isMounted) return;
-        try {
-          if (liveCloudContainers && liveCloudContainers.length > 0) {
-            setIsCloudConnected(true);
-            setCloudSyncStatus('synced');
-            // Update state immediately across all shared browser sessions
-            setContainers(liveCloudContainers);
-            setIsLoadingContainers(false);
-
-            // Bulk save to local IndexedDB in background
-            bulkSaveContainers(liveCloudContainers).catch((e) =>
-              console.warn('Real-time background cache note:', e)
-            );
-          }
-        } catch (subErr) {
-          console.warn('Real-time sync merge note:', subErr);
-        }
-      },
-      (err) => {
-        console.warn('Real-time Firestore listener note:', err);
-      }
-    );
-
-    // Verify Firestore connection
-    testConnection().then((connected) => {
-      if (isMounted) setIsCloudConnected(connected);
-    });
-
     return () => {
       isMounted = false;
-      unsubscribeSnapshot();
     };
   }, []);
 
-  // Monitor Firebase Auth state if needed
+  // Monitor Firebase Auth state and keep ID token in React memory only
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          setIdToken(token);
+        } catch {
+          setIdToken(null);
+        }
+      } else {
+        setIdToken(null);
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  const syncToCloud = async (): Promise<{ success: number; failed: number }> => {
-    try {
-      setCloudSyncStatus('syncing');
-      const latest = await getAllContainersWithVehicles();
-      const res = await syncContainersToFirestore(latest);
-      setCloudSyncStatus('synced');
-      addToast({
-        type: 'success',
-        title: 'Firebase Cloud Synced',
-        description: `Successfully uploaded ${res.success} container plans to Google Firestore.`,
-      });
-      return res;
-    } catch (err: any) {
-      setCloudSyncStatus('error');
-      addToast({
-        type: 'error',
-        title: 'Cloud Sync Failed',
-        description: err.message || 'Could not write to Firebase Firestore.',
-      });
-      return { success: 0, failed: containers.length };
-    }
-  };
-
-  const syncFromCloud = async (): Promise<number> => {
-    try {
-      setCloudSyncStatus('syncing');
-      const cloudContainers = await getContainersFromFirestore();
-      if (!cloudContainers || cloudContainers.length === 0) {
-        setCloudSyncStatus('synced');
-        addToast({
-          type: 'info',
-          title: 'Cloud Storage Empty',
-          description: 'No container plans found in Firebase Firestore yet.',
-        });
-        return 0;
-      }
-
-      // Check existing in Dexie
-      const existing = await getAllContainersWithVehicles();
-      const existingNos = new Set(existing.map((c) => c.containerNo.toUpperCase()));
-      const toAdd = cloudContainers.filter((c) => !existingNos.has(c.containerNo.toUpperCase()));
-
-      for (const c of toAdd) {
-        await addContainerWithVehicles(c);
-      }
-
-      await refreshContainers();
-      setCloudSyncStatus('synced');
-      addToast({
-        type: 'success',
-        title: 'Cloud Records Restored',
-        description: `Downloaded ${cloudContainers.length} containers (${toAdd.length} new added to local storage).`,
-      });
-      return cloudContainers.length;
-    } catch (err: any) {
-      setCloudSyncStatus('error');
-      addToast({
-        type: 'error',
-        title: 'Cloud Fetch Error',
-        description: err.message || 'Could not read from Firebase Firestore.',
-      });
-      return 0;
-    }
-  };
-
   const signInWithGoogle = async () => {
-    // Google popup sign-in disabled as requested: Access is exclusively managed via Admin usernames & passwords.
-    addToast({
-      type: 'info',
-      title: 'Portal Authentication',
-      description: 'Please sign in using your username and password assigned by Anil Gaur.',
-    });
+    try {
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      const token = await result.user.getIdToken();
+      setIdToken(token);
+      await syncAuthUserToApi(token);
+      addToast({
+        type: 'success',
+        title: 'Signed In',
+        description: `Signed in as ${result.user.email || result.user.displayName || 'Authorized User'}.`,
+      });
+    } catch (err: any) {
+      console.error('Google sign-in error:', err);
+      addToast({
+        type: 'error',
+        title: 'Sign In Failed',
+        description: err.message || 'Could not complete Google Sign-In.',
+      });
+    }
   };
-
-  const signOutUser = async () => {
-    logoutSessionUser();
-  };
-
-  const SESSION_USER_KEY = 'cpm_session_user_v1';
 
   const [sessionUser, setSessionUser] = useState<AppUserAccess | null>(() => {
     try {
@@ -399,44 +376,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [accessConfig, setAccessConfig] = useState<AccessControlConfig>({
     requireApproval: false,
-    requireWebLogin: true,
+    requireWebLogin: false,
     adminEmail: 'admin@cpm.internal',
     masterPassword: '8076910181',
     blockedEmails: [],
   });
 
-  const [usersList, setUsersList] = useState<AppUserAccess[]>([]);
+  const [usersList, setUsersList] = useState<AppUserAccess[]>([DEFAULT_ADMIN_USER]);
 
-  // Password Protection for Excel Download
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [pendingProtectedAction, setPendingProtectedAction] = useState<(() => void) | null>(null);
   const [passwordModalTitle, setPasswordModalTitle] = useState('Authorization Required');
   const [passwordModalDesc, setPasswordModalDesc] = useState('');
 
-  // Initial load of access configuration and users
   useEffect(() => {
-    fetchAccessConfig().then((cfg) => {
-      setAccessConfig(cfg);
-    });
-    fetchUsersList().then((list) => {
-      setUsersList(list);
-    });
+    fetchAccessConfigFromApi()
+      .then((cfg) => {
+        if (cfg) setAccessConfig(cfg);
+      })
+      .catch(() => {});
+
+    fetchPortalUsersFromApi()
+      .then((list) => {
+        if (list && list.length > 0) {
+          setUsersList(list);
+        } else {
+          setUsersList([DEFAULT_ADMIN_USER]);
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  // Check if current user is an admin
   const isAdmin = Boolean(
     currentUser?.email?.toLowerCase() === 'anilgaur099@gmail.com' ||
-    currentUser?.email?.toLowerCase() === 'anilgaurjaaflogi@gmail.com' ||
-    sessionUser?.role === 'admin' ||
-    sessionUser?.username?.toLowerCase() === 'anil' ||
-    adminUnlockedWithPin
+      currentUser?.email?.toLowerCase() === 'anilgaurjaaflogi@gmail.com' ||
+      sessionUser?.role === 'admin' ||
+      sessionUser?.username?.toLowerCase() === 'anil' ||
+      adminUnlockedWithPin
   );
 
-  // Check if current user is blocked
   const isUserBlocked = Boolean(
-    (currentUser?.email && accessConfig.blockedEmails.some((e) => e.toLowerCase() === currentUser.email?.toLowerCase())) ||
-    (sessionUser?.email && accessConfig.blockedEmails.some((e) => e.toLowerCase() === sessionUser.email?.toLowerCase())) ||
-    sessionUser?.status === 'blocked'
+    (currentUser?.email &&
+      (accessConfig.blockedEmails || []).some(
+        (e) => e.toLowerCase() === currentUser.email?.toLowerCase()
+      )) ||
+      (sessionUser?.email &&
+        (accessConfig.blockedEmails || []).some(
+          (e) => e.toLowerCase() === sessionUser.email?.toLowerCase()
+        )) ||
+      sessionUser?.status === 'blocked'
   );
 
   const loginWithCredentials = async (
@@ -447,9 +435,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanPass = pass.trim();
     const currentMasterPass = accessConfig.masterPassword || '8076910181';
 
-    // 1. Direct Master Admin Login check
     if (
-      (cleanId === 'anil' || cleanId === 'admin' || cleanId === 'anilgaurjaaflogi@gmail.com' || cleanId === 'anilgaur099@gmail.com') &&
+      (cleanId === 'anil' ||
+        cleanId === 'admin' ||
+        cleanId === 'anilgaurjaaflogi@gmail.com' ||
+        cleanId === 'anilgaur099@gmail.com') &&
       cleanPass === currentMasterPass
     ) {
       const adminUser: AppUserAccess = {
@@ -471,15 +461,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     }
 
-    // 2. Fetch fresh users list from DB
-    const latestUsers = await fetchUsersList();
-    setUsersList(latestUsers);
+    const latestUsers = await fetchPortalUsersFromApi().catch(() => usersList);
+    if (latestUsers.length > 0) setUsersList(latestUsers);
 
-    // 3. Find matching user by email or username
     const found = latestUsers.find(
       (u) =>
-        u.email.toLowerCase() === cleanId ||
-        (u.username && u.username.toLowerCase() === cleanId)
+        u.email.toLowerCase() === cleanId || (u.username && u.username.toLowerCase() === cleanId)
     );
 
     if (!found) {
@@ -489,7 +476,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // 4. Check if blocked
     if (
       found.status === 'blocked' ||
       accessConfig.blockedEmails.some((b) => b.toLowerCase() === found.email.toLowerCase())
@@ -500,7 +486,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // 5. Password verification
     if (found.password && found.password !== cleanPass) {
       return {
         success: false,
@@ -508,7 +493,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Success: Establish session
     const activeUser: AppUserAccess = {
       ...found,
       lastActive: Date.now(),
@@ -520,9 +504,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAdminUnlockedWithPin(true);
     }
 
-    // Update lastActive timestamp
-    saveUserRecord(activeUser).catch(() => {});
-
+    savePortalUserToApi(activeUser).catch(() => {});
     return { success: true };
   };
 
@@ -533,6 +515,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       sessionStorage.removeItem('cpm_admin_pin_unlocked');
     } catch {}
+  };
+
+  const signOutUser = async () => {
+    try {
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+    } catch {}
+    setIdToken(null);
+    logoutSessionUser();
   };
 
   const loginAsGuestViewer = () => {
@@ -551,14 +543,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast({
       type: 'info',
       title: 'Viewer Access Granted',
-      description: 'Viewing real-time container plans and vehicle specifications.',
+      description: 'Viewing container plans and vehicle specifications.',
     });
   };
 
   const updateMasterPassword = async (newPass: string) => {
     const updatedCfg = { ...accessConfig, masterPassword: newPass.trim() };
     setAccessConfig(updatedCfg);
-    await saveAccessConfig(updatedCfg);
+    await saveAccessConfigToApi(updatedCfg);
   };
 
   const unlockAdminWithPin = (pin: string): boolean => {
@@ -590,16 +582,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedBlocked = Array.from(new Set([...accessConfig.blockedEmails, clean]));
     const newCfg = { ...accessConfig, blockedEmails: updatedBlocked };
     setAccessConfig(newCfg);
-    await saveAccessConfig(newCfg);
+    await saveAccessConfigToApi(newCfg);
 
     const target = updatedUsers.find((u) => u.email.toLowerCase() === clean);
     if (target) {
-      await saveUserRecord(target);
+      await savePortalUserToApi(target);
     }
     addToast({
       type: 'warning',
       title: 'User Blocked / Kicked Out',
-      description: `${clean} has been kicked out and cannot access the app.`,
+      description: `${clean} has been blocked.`,
     });
   };
 
@@ -613,11 +605,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedBlocked = accessConfig.blockedEmails.filter((e) => e.toLowerCase() !== clean);
     const newCfg = { ...accessConfig, blockedEmails: updatedBlocked };
     setAccessConfig(newCfg);
-    await saveAccessConfig(newCfg);
+    await saveAccessConfigToApi(newCfg);
 
     const target = updatedUsers.find((u) => u.email.toLowerCase() === clean);
     if (target) {
-      await saveUserRecord(target);
+      await savePortalUserToApi(target);
     }
     addToast({
       type: 'success',
@@ -627,15 +619,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addUserAccess = async (user: AppUserAccess) => {
-    await saveUserRecord(user);
-    const updated = await fetchUsersList();
-    setUsersList(updated);
+    await savePortalUserToApi(user);
+    const updated = await fetchPortalUsersFromApi();
+    setUsersList(updated.length > 0 ? updated : [DEFAULT_ADMIN_USER]);
   };
 
   const removeUserAccess = async (email: string) => {
-    await removeUserRecord(email);
-    const updated = await fetchUsersList();
-    setUsersList(updated);
+    await deletePortalUserFromApi(email);
+    const updated = await fetchPortalUsersFromApi();
+    setUsersList(updated.length > 0 ? updated : [DEFAULT_ADMIN_USER]);
     addToast({
       type: 'info',
       title: 'User Removed',
@@ -646,11 +638,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAccessConfig = async (cfg: Partial<AccessControlConfig>) => {
     const updated = { ...accessConfig, ...cfg };
     setAccessConfig(updated);
-    await saveAccessConfig(updated);
+    await saveAccessConfigToApi(updated);
     addToast({
       type: 'success',
       title: 'Security Policy Updated',
-      description: 'Access control configuration saved to cloud.',
+      description: 'Access control configuration saved.',
     });
   };
 
@@ -698,11 +690,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         transferContainerToBuilder,
         printContainerData,
         setPrintContainerData,
-        isCloudConnected,
-        cloudSyncStatus,
         currentUser,
-        syncToCloud,
-        syncFromCloud,
+        idToken,
         signInWithGoogle,
         signOutUser,
         sessionUser,

@@ -10,7 +10,6 @@ import {
   Moon,
   Languages,
   X,
-  Cloud,
   ShieldAlert,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -174,8 +173,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
         {/* Database Quick Stats */}
         <div className="px-4 py-3 mx-3 my-2 rounded-lg bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5">
           <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>DATABASE ACTIVE</span>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">24/7 CLOUD</span>
+            <span>FLEET ARCHIVE</span>
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">LIVE PLANS</span>
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import { Container, Vehicle } from '../types';
 import { calculateCbm, extractChassisPrefix, hasCbmMismatch } from '../utils/chassisParser';
-import { addContainerWithVehicles, updateContainerWithVehicles, getDistinctModels, getDistinctMakes } from '../db/db';
-import { saveContainerToFirestore } from '../firebase/firestoreService';
+import { upsertContainerByNo } from '../db/db';
+import { saveContainerToApi } from '../api/cloudSqlClient';
 import { useApp } from '../context/AppContext';
 
 interface NewContainerModalProps {
@@ -19,7 +19,7 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
   editContainer,
   onSaved,
 }) => {
-  const { addToast } = useApp();
+  const { addToast, containers } = useApp();
   const [containerNo, setContainerNo] = useState('');
   const [sealOrBlNo, setSealOrBlNo] = useState('');
   const [extraValue, setExtraValue] = useState<number | string>(4000);
@@ -30,8 +30,16 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      getDistinctModels().then(setKnownModels);
-      getDistinctMakes().then(setKnownMakes);
+      const mSet = new Set<string>();
+      const makeSet = new Set<string>();
+      containers.forEach((c) =>
+        (c.vehicles || []).forEach((v) => {
+          if (v.model) mSet.add(v.model.toUpperCase().trim());
+          if (v.make) makeSet.add(v.make.toUpperCase().trim());
+        })
+      );
+      setKnownModels(Array.from(mSet).sort());
+      setKnownMakes(Array.from(makeSet).sort());
 
       if (editContainer) {
         setContainerNo(editContainer.containerNo);
@@ -178,23 +186,16 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
         updatedAt: Date.now(),
       };
 
-      if (editContainer && editContainer.id) {
-        await updateContainerWithVehicles(editContainer.id, containerObj);
-        await saveContainerToFirestore(containerObj);
-        addToast({
-          type: 'success',
-          title: 'Container Updated',
-          description: `Plan for ${containerObj.containerNo} updated and synchronized 24/7.`,
-        });
-      } else {
-        await addContainerWithVehicles(containerObj);
-        await saveContainerToFirestore(containerObj);
-        addToast({
-          type: 'success',
-          title: 'Container Added',
-          description: `Plan for ${containerObj.containerNo} saved to library and synchronized 24/7.`,
-        });
-      }
+      await saveContainerToApi(containerObj, editContainer?.containerNo);
+      upsertContainerByNo(containerObj).catch(() => {});
+
+      addToast({
+        type: 'success',
+        title: editContainer ? 'Container Updated' : 'Container Added',
+        description: editContainer
+          ? `Plan for ${containerObj.containerNo} updated.`
+          : `Plan for ${containerObj.containerNo} saved to library.`,
+      });
 
       onSaved();
       onClose();
@@ -203,7 +204,7 @@ export const NewContainerModal: React.FC<NewContainerModalProps> = ({
       addToast({
         type: 'error',
         title: 'Save Failed',
-        description: err.message || 'Error writing to IndexedDB',
+        description: err.message || 'Could not save container plan.',
       });
     }
   };
